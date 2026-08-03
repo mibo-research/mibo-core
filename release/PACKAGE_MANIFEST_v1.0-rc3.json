@@ -1,0 +1,220 @@
+{
+  "package_name": "MIBO Protocol Package",
+  "version": "1.0-rc3",
+  "created": "2026-08-03",
+  "authoritative_language": "English",
+  "planned_observation_start": "2026-09-01",
+  "status": "Integrated release candidate; final freeze pending",
+  "files": [
+    {
+      "path": "CONSISTENCY_CHECKS.json",
+      "bytes": 439,
+      "sha256": "e0e53adac692110667415ca7567493405eaaf4dfac7d0066167ff9f515e63f89"
+    },
+    {
+      "path": "MIBO_Cross_Document_Consistency_Audit_v1.0-rc3.md",
+      "bytes": 4656,
+      "sha256": "326be336e561d0fcd13e7ad9de1aed4c1aecc322c786288fe778d8b079b4fab4"
+    },
+    {
+      "path": "README.md",
+      "bytes": 938,
+      "sha256": "1a7d9687151bfc7a3616d0992aa281d235339cf61dd3584147a08f8d34686c72"
+    },
+    {
+      "path": "documents/MIBO_Core_Observatory_Master_Protocol_v1.0-rc3.md",
+      "bytes": 145197,
+      "sha256": "f0bf56eb4f68ad0da1b2febc6f99a039ce206ec8a105e72f568f8031f6d85378"
+    },
+    {
+      "path": "documents/MIBO_Fixed_Query_Instrument_v1.0-rc3.md",
+      "bytes": 21385,
+      "sha256": "e39998e8ebd109a797b2879d36adc476155e39ee4a4bee6689c9f7c1444df398"
+    },
+    {
+      "path": "documents/MIBO_Frozen_Live_Comparability_Registry_v1.0-rc3.md",
+      "bytes": 21247,
+      "sha256": "e9d4d1c4a02f1d4df3abae5ae30c3abcdb644268b1ef06fdb2c2ac187ec63260"
+    },
+    {
+      "path": "documents/MIBO_Operations_Schedule_and_Manual_v1.0-rc3.md",
+      "bytes": 28180,
+      "sha256": "9f974abaedc53117dbd043f84208b65f9109e04025b8c72dac1a7279432f5eb7"
+    },
+    {
+      "path": "documents/MIBO_Query_Codebook_v1.0-rc3.md",
+      "bytes": 31027,
+      "sha256": "29ea1e27287e0fc1acec10f796cbf02707ddb9227dd305453fb9cbcb8b2b8b50"
+    },
+    {
+      "path": "documents/MIBO_Service_Registry_v1.0-rc3.md",
+      "bytes": 15051,
+      "sha256": "12a43682dce94d02c3680431a4d128a3259c6854e91d7723f553ec483726467e"
+    },
+    {
+      "path": "documents/MIBO_Statistical_Analysis_Plan_v1.0-rc3.md",
+      "bytes": 37936,
+      "sha256": "f096ab1ecbe9e8580e1d43a344e8303109fcfb40560385304c102793aaa8d686"
+    },
+    {
+      "path": "mirror_kit/MIBO_Mirror_Observatory_Kit_v1.0-rc3/KIT_MANIFEST.json",
+      "bytes": 5564,
+      "sha256": "706974c91fb0f66d00f8e42b9b210811be82ff05223dd2a2fc5bf1b2e8f2afca"
+    },
+    {
+      "path": "mirror_kit/MIBO_Mirror_Observatory_Kit_v1.0-rc3/LICENSE_NOTICE.md",
+      "bytes": 750,
+      "sha256": "3c6b9ddf02cfe0eb823d93037f9d2bcffc44e6a7b8bd89fa293c8575b5e06848"
+    },
+    {
+      "path": "mirror_kit/MIBO_Mirror_Observatory_Kit_v1.0-rc3/README.md",
+      "bytes": 12996,
+      "sha256": "d3e17b320e3f02c47fc1e90c7353dd07b603cf92548d047fb587365a7e3c31ec"
+    },
+    {
+      "path": "mirror_kit/MIBO_Mirror_Observatory_Kit_v1.0-rc3/analysis/README.md",
+      "bytes": 583,
+      "sha256": "46523b02e164dcee1d76dd242341086b84fbf3ce2a97f8161663707cafc78dd8"
+    },
+    {
+      "path": "mirror_kit/MIBO_Mirror_Observatory_Kit_v1.0-rc3/analysis/g_study_template.R",
+      "bytes": 1975,
+      "sha256": "f483a125a7ffe350013ac44a526e4cf98bdbf89b156773e45aa3c56856d64296"
+    },
+    {
+      "path": "mirror_kit/MIBO_Mirror_Observatory_Kit_v1.0-rc3/codebook/MIBO_Anchor_Codebook_v1.0-rc1.md",
+      "bytes": 2849,
+      "sha256": "95e07bd48aad005ed9f1d6d3553f8c51b721569874a434f47cddba768fc31fb2"
+    },
+    {
+      "path": "mirror_kit/MIBO_Mirror_Observatory_Kit_v1.0-rc3/docs/MIBO_Core_Observatory_Master_Protocol_v1.0-rc3.md",
+      "bytes": 145197,
+      "sha256": "f0bf56eb4f68ad0da1b2febc6f99a039ce206ec8a105e72f568f8031f6d85378"
+    },
+    {
+      "path": "mirror_kit/MIBO_Mirror_Observatory_Kit_v1.0-rc3/docs/MIBO_Fixed_Query_Instrument_v1.0-rc3.md",
+      "bytes": 21385,
+      "sha256": "e39998e8ebd109a797b2879d36adc476155e39ee4a4bee6689c9f7c1444df398"
+    },
+    {
+      "path": "mirror_kit/MIBO_Mirror_Observatory_Kit_v1.0-rc3/docs/MIBO_Frozen_Live_Comparability_Registry_v1.0-rc3.md",
+      "bytes": 21247,
+      "sha256": "e9d4d1c4a02f1d4df3abae5ae30c3abcdb644268b1ef06fdb2c2ac187ec63260"
+    },
+    {
+      "path": "mirror_kit/MIBO_Mirror_Observatory_Kit_v1.0-rc3/docs/MIBO_Operations_Schedule_and_Manual_v1.0-rc3.md",
+      "bytes": 28180,
+      "sha256": "9f974abaedc53117dbd043f84208b65f9109e04025b8c72dac1a7279432f5eb7"
+    },
+    {
+      "path": "mirror_kit/MIBO_Mirror_Observatory_Kit_v1.0-rc3/docs/MIBO_Query_Codebook_v1.0-rc3.md",
+      "bytes": 31027,
+      "sha256": "29ea1e27287e0fc1acec10f796cbf02707ddb9227dd305453fb9cbcb8b2b8b50"
+    },
+    {
+      "path": "mirror_kit/MIBO_Mirror_Observatory_Kit_v1.0-rc3/docs/MIBO_Service_Registry_v1.0-rc3.md",
+      "bytes": 15051,
+      "sha256": "12a43682dce94d02c3680431a4d128a3259c6854e91d7723f553ec483726467e"
+    },
+    {
+      "path": "mirror_kit/MIBO_Mirror_Observatory_Kit_v1.0-rc3/docs/MIBO_Statistical_Analysis_Plan_v1.0-rc3.md",
+      "bytes": 37936,
+      "sha256": "f096ab1ecbe9e8580e1d43a344e8303109fcfb40560385304c102793aaa8d686"
+    },
+    {
+      "path": "mirror_kit/MIBO_Mirror_Observatory_Kit_v1.0-rc3/dry_run/MIBO_Mirror_Dry_Run_Instrument_v1.0-rc1.md",
+      "bytes": 1154,
+      "sha256": "c62b6fc46d773c3baf6d516ec5c06dbda885bdaa065476d8f3890d57e09e3e48"
+    },
+    {
+      "path": "mirror_kit/MIBO_Mirror_Observatory_Kit_v1.0-rc3/dry_run/README.md",
+      "bytes": 1059,
+      "sha256": "44fa78d253942d7925dae3bcef9daec00a307a53e15259b4204ae63cb7dee1b0"
+    },
+    {
+      "path": "mirror_kit/MIBO_Mirror_Observatory_Kit_v1.0-rc3/dry_run/dry_run_metadata_template.csv",
+      "bytes": 473,
+      "sha256": "1068272fd3d63ceb04fc89b50ec444c465661404f74b43653643941f71ebaa02"
+    },
+    {
+      "path": "mirror_kit/MIBO_Mirror_Observatory_Kit_v1.0-rc3/instrument/MIBO_Global_Bridge_Instrument_v1.0-rc1.md",
+      "bytes": 1331,
+      "sha256": "32f145fa415f0959f86230e2e883504f7c7dcc2e8e51d2316e124a770164f8d7"
+    },
+    {
+      "path": "mirror_kit/MIBO_Mirror_Observatory_Kit_v1.0-rc3/schemas/observation_metadata_schema.json",
+      "bytes": 2228,
+      "sha256": "0a431925bcddb91a455b6b46a624d27f8b15845998e60e58f7ac3d55318897ee"
+    },
+    {
+      "path": "mirror_kit/MIBO_Mirror_Observatory_Kit_v1.0-rc3/scripts/__pycache__/generate_hash_manifest.cpython-313.pyc",
+      "bytes": 2635,
+      "sha256": "5c763848c27d71773ff02544fe647f9920178634f8d9577e5472ddfe5614c1ee"
+    },
+    {
+      "path": "mirror_kit/MIBO_Mirror_Observatory_Kit_v1.0-rc3/scripts/__pycache__/validate_submission.cpython-313.pyc",
+      "bytes": 7828,
+      "sha256": "db2450baa4eac64686b6a955df9fc00887e25425b793995f6b8334de03d13ef7"
+    },
+    {
+      "path": "mirror_kit/MIBO_Mirror_Observatory_Kit_v1.0-rc3/scripts/generate_hash_manifest.py",
+      "bytes": 1086,
+      "sha256": "fda548d683f931567f935276bf2eb018c846dd7cfc69e608099783c19e7ec472"
+    },
+    {
+      "path": "mirror_kit/MIBO_Mirror_Observatory_Kit_v1.0-rc3/scripts/validate_submission.py",
+      "bytes": 5000,
+      "sha256": "c49a7609079f3f0005ae6b9dd4e6fc045d617a670ee8ba36c494884c3fc2d88d"
+    },
+    {
+      "path": "mirror_kit/MIBO_Mirror_Observatory_Kit_v1.0-rc3/templates/Attempt_and_Retry_Log.csv",
+      "bytes": 159,
+      "sha256": "911b2bd3abf0c7b636e6f8f203e8b4f5b9aa5696fae6f8fccbb4a6b837f22b8b"
+    },
+    {
+      "path": "mirror_kit/MIBO_Mirror_Observatory_Kit_v1.0-rc3/templates/Execution_Manifest_Template.csv",
+      "bytes": 142,
+      "sha256": "f0922a08313af8c4f72df97ccf62f2d31fd3d664a1f531ecaffcafa44fd6ffaf"
+    },
+    {
+      "path": "mirror_kit/MIBO_Mirror_Observatory_Kit_v1.0-rc3/templates/Observation_Metadata_Template.csv",
+      "bytes": 473,
+      "sha256": "1068272fd3d63ceb04fc89b50ec444c465661404f74b43653643941f71ebaa02"
+    },
+    {
+      "path": "mirror_kit/MIBO_Mirror_Observatory_Kit_v1.0-rc3/templates/Operational_Audit_Template.csv",
+      "bytes": 199,
+      "sha256": "4ea5cf1240cd598cf1bcfeb0cfd7db0e0527f528255920510d87fd96b2020c87"
+    },
+    {
+      "path": "mirror_kit/MIBO_Mirror_Observatory_Kit_v1.0-rc3/templates/Post_Wave_Checklist.md",
+      "bytes": 507,
+      "sha256": "de43e67d6c2022f2888c255b4ee967e6492ec6d0c2f1c92e7c9eee0a985714cd"
+    },
+    {
+      "path": "mirror_kit/MIBO_Mirror_Observatory_Kit_v1.0-rc3/templates/Pre_Wave_Checklist.md",
+      "bytes": 486,
+      "sha256": "1dbdf3c38838e1b687da61e60cb26e853995fbaa3a554bab4b00f10e4b8282ac"
+    },
+    {
+      "path": "mirror_kit/MIBO_Mirror_Observatory_Kit_v1.0-rc3/templates/Protocol_Deviation_Log.csv",
+      "bytes": 199,
+      "sha256": "28f96ec30ef518a681826c4635163fab636583b8ab536745902a4dda1aa70245"
+    },
+    {
+      "path": "mirror_kit/MIBO_Mirror_Observatory_Kit_v1.0-rc3/templates/Site_Lead_Attestation.md",
+      "bytes": 968,
+      "sha256": "ded747d4271de54c454e71eb3525b97d46ccd86cb2f413c7b2623c56b94ed5dd"
+    },
+    {
+      "path": "mirror_kit/MIBO_Mirror_Observatory_Kit_v1.0-rc3/templates/Site_Registration_and_Configuration.csv",
+      "bytes": 348,
+      "sha256": "2fba3a133f30090076dc09ccc95daa8ea9d6414d747ab81b98c1181b7c1873ae"
+    },
+    {
+      "path": "mirror_kit/MIBO_Mirror_Observatory_Kit_v1.0-rc3/templates/Wave_Completion_Record.md",
+      "bytes": 972,
+      "sha256": "620b1ff9c5f23f0a94116e939a0337c7277dadf20c2dc346cb32112c34a9f973"
+    }
+  ]
+}

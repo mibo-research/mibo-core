@@ -1,0 +1,17 @@
+cff-version: 1.2.0
+message: "Please cite the exact MIBO Core protocol version used."
+title: "MIBO Core Observatory Master Protocol"
+type: software
+version: "1.0-rc3"
+date-released: 2026-08-03
+authors:
+  - family-names: "Sasano"
+    given-names: "Kento"
+    affiliation: "Okayama University"
+repository-code: "TO_BE_ADDED_AFTER_GITHUB_PUBLICATION"
+license: "proprietary"
+keywords:
+  - generative AI
+  - panel survey
+  - machine information behavior
+  - generalizability theory

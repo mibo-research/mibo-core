@@ -1,0 +1,16 @@
+{
+  "all_component_versions_rc3": true,
+  "instrument_12_items": true,
+  "instrument_24_forms": true,
+  "anchor_ids_consistent": true,
+  "twelve_waves": true,
+  "calibration_waves": true,
+  "h4_conditional": true,
+  "paired_architecture": true,
+  "phi_threshold": true,
+  "cell_threshold": true,
+  "ai_human_audit_10_percent": true,
+  "operational_audit_5_percent": true,
+  "no_response_imputation": true,
+  "japanese_length_rules": true
+}

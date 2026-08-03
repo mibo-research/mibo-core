@@ -1,0 +1,102 @@
+[
+  {
+    "path": ".github/PULL_REQUEST_TEMPLATE.md",
+    "bytes": 327,
+    "sha256": "985b101951207690304198a329234b86ab80e43d490ddeb011184dfc8b7c1bc3"
+  },
+  {
+    "path": ".github/workflows/validate.yml",
+    "bytes": 319,
+    "sha256": "60aabf69bfaa75e0bd42b7ae155613edf6f61aedc96a7312a7ce9e0d773260b1"
+  },
+  {
+    "path": "CHANGELOG.md",
+    "bytes": 349,
+    "sha256": "423058812f22504a42a1297e96952c642370e631bdd083b3c494a5cc26378246"
+  },
+  {
+    "path": "CITATION.cff",
+    "bytes": 476,
+    "sha256": "c90619985527ea0bb8e6d1fb64fcf41f139aa5b831c060acb849bd645925593b"
+  },
+  {
+    "path": "CODE_OF_CONDUCT.md",
+    "bytes": 437,
+    "sha256": "a750371bf4fbecda84274da6d4781ef5a1baf6ea0eea2f3811b868cf3e74da9a"
+  },
+  {
+    "path": "CONTRIBUTING.md",
+    "bytes": 539,
+    "sha256": "2c897c6de9239852807dd9c263d366b76472785dadd4e8a0d717078a58adba70"
+  },
+  {
+    "path": "LICENSE_NOTICE.md",
+    "bytes": 440,
+    "sha256": "c36265e7ae9b28a3e80afef2648bb0788ec5a861e6ad8db835cf17543a9fade7"
+  },
+  {
+    "path": "README.md",
+    "bytes": 759,
+    "sha256": "8d14ace8f1322cbdefba770c1a645642aade121f634c49e6031649673b7c0f3f"
+  },
+  {
+    "path": "SECURITY.md",
+    "bytes": 380,
+    "sha256": "357de3a44c4a971e0fcfe972496caae7e6b669479030f853792606a4581d4e54"
+  },
+  {
+    "path": "audit/CONSISTENCY_CHECKS.json",
+    "bytes": 439,
+    "sha256": "e0e53adac692110667415ca7567493405eaaf4dfac7d0066167ff9f515e63f89"
+  },
+  {
+    "path": "docs/MIBO_Core_Observatory_Master_Protocol_v1.0-rc3.md",
+    "bytes": 145197,
+    "sha256": "f0bf56eb4f68ad0da1b2febc6f99a039ce206ec8a105e72f568f8031f6d85378"
+  },
+  {
+    "path": "docs/MIBO_Cross_Document_Consistency_Audit_v1.0-rc3.md",
+    "bytes": 4656,
+    "sha256": "326be336e561d0fcd13e7ad9de1aed4c1aecc322c786288fe778d8b079b4fab4"
+  },
+  {
+    "path": "docs/MIBO_Fixed_Query_Instrument_v1.0-rc3.md",
+    "bytes": 21385,
+    "sha256": "e39998e8ebd109a797b2879d36adc476155e39ee4a4bee6689c9f7c1444df398"
+  },
+  {
+    "path": "docs/MIBO_Frozen_Live_Comparability_Registry_v1.0-rc3.md",
+    "bytes": 21247,
+    "sha256": "e9d4d1c4a02f1d4df3abae5ae30c3abcdb644268b1ef06fdb2c2ac187ec63260"
+  },
+  {
+    "path": "docs/MIBO_Operations_Schedule_and_Manual_v1.0-rc3.md",
+    "bytes": 28180,
+    "sha256": "9f974abaedc53117dbd043f84208b65f9109e04025b8c72dac1a7279432f5eb7"
+  },
+  {
+    "path": "docs/MIBO_Query_Codebook_v1.0-rc3.md",
+    "bytes": 31027,
+    "sha256": "29ea1e27287e0fc1acec10f796cbf02707ddb9227dd305453fb9cbcb8b2b8b50"
+  },
+  {
+    "path": "docs/MIBO_Service_Registry_v1.0-rc3.md",
+    "bytes": 15051,
+    "sha256": "12a43682dce94d02c3680431a4d128a3259c6854e91d7723f553ec483726467e"
+  },
+  {
+    "path": "docs/MIBO_Statistical_Analysis_Plan_v1.0-rc3.md",
+    "bytes": 37936,
+    "sha256": "f096ab1ecbe9e8580e1d43a344e8303109fcfb40560385304c102793aaa8d686"
+  },
+  {
+    "path": "release/PACKAGE_MANIFEST_v1.0-rc3.json",
+    "bytes": 9118,
+    "sha256": "5bcc67c3eed7817a0e41986c310f6b62e3215cbd5db438aac4db173c2c60b973"
+  },
+  {
+    "path": "tools/check_repo.py",
+    "bytes": 1435,
+    "sha256": "6af53c81c84a3cb0461fff51617047d7dc6f979888d6ac7994139150a2883e89"
+  }
+]
