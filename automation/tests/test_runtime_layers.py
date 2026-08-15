@@ -98,6 +98,30 @@ class RawArchiveTests(unittest.TestCase):
                     returned_model="synthetic-model", usage={}, started_at_utc="s", completed_at_utc="e", duration_ms=10,
                 )
 
+    def test_retry_link_is_explicit_hashed_and_append_only(self):
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d)
+            link = ra.archive_retry_link(
+                data_root=root,
+                original_attempt_id="MIBO-SITE-JP01-W01-SL002-PLR-I03-EN-STD-R01-A01",
+                retry_attempt_id="MIBO-SITE-JP01-W01-SL002-PLR-I03-EN-STD-R01-A02",
+                site_id="JP01",
+                wave_id="MIBO-W01",
+                due_at_utc="2026-09-01T01:10:00Z",
+                failure_kind="timeout",
+            )
+            self.assertEqual(len(link["retry_link_sha256"]), 64)
+            with self.assertRaises(FileExistsError):
+                ra.archive_retry_link(
+                    data_root=root,
+                    original_attempt_id="MIBO-SITE-JP01-W01-SL002-PLR-I03-EN-STD-R01-A01",
+                    retry_attempt_id="MIBO-SITE-JP01-W01-SL002-PLR-I03-EN-STD-R01-A02",
+                    site_id="JP01",
+                    wave_id="MIBO-W01",
+                    due_at_utc="2026-09-01T01:10:00Z",
+                    failure_kind="timeout",
+                )
+
 
 if __name__ == "__main__":
     unittest.main()
