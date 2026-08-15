@@ -9,7 +9,11 @@ Protocol DOI: `10.5281/zenodo.21936410`
 - record comparability class;
 - run synthetic dry-run tests;
 - record software commit and environment hash;
-- generate manifests and store their SHA-256 hashes before observation.
+- generate manifests;
+- run both structural validation and `automation/manifest_integrity.py` strict deterministic identity validation;
+- store final manifest SHA-256 hashes before observation.
+
+A manifest must not be designated `MANIFEST_FROZEN` if either validator reports an error.
 
 ## 31 August 2026
 - no confirmatory prompts for readiness testing;
