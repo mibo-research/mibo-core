@@ -18,6 +18,7 @@ The scientific protocol is frozen at DOI `10.5281/zenodo.21936410`. The automati
 - paired API block manifest generation only from a finalized provider-freeze record;
 - Attempt ID generation;
 - structural manifest validation;
+- strict deterministic identity validation for seed, Attempt ID, service/provider metadata, and Anchor flags;
 - CI tests; and
 - a manual Codex maintainer workflow.
 
@@ -47,6 +48,7 @@ python automation/mibo_runner.py generate-ui \
   --out /tmp/MIBO-W01-JP01-LUI.csv
 
 python automation/mibo_runner.py validate /tmp/MIBO-W01-JP01-LUI.csv
+python automation/manifest_integrity.py /tmp/MIBO-W01-JP01-LUI.csv
 
 python automation/mibo_runner.py generate-paired \
   --wave MIBO-W01 \
@@ -55,7 +57,12 @@ python automation/mibo_runner.py generate-paired \
   --lineage MIBO-SL-002 \
   --lineage MIBO-SL-003 \
   --out /tmp/MIBO-W01-JP01-PAIRED.csv
+
+python automation/mibo_runner.py validate /tmp/MIBO-W01-JP01-PAIRED.csv
+python automation/manifest_integrity.py /tmp/MIBO-W01-JP01-PAIRED.csv
 ```
+
+Both structural validation and strict identity validation are required before a manifest is frozen for scientific collection.
 
 ## Runtime architecture for September 1
 
