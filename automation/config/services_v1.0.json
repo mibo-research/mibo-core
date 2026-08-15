@@ -1,0 +1,37 @@
+{
+  "protocol_doi": "10.5281/zenodo.21936410",
+  "services": [
+    {
+      "service_lineage_id": "MIBO-SL-001",
+      "short_id": "SL001",
+      "name": "ChatGPT",
+      "provider": "OpenAI",
+      "ecological_live": true,
+      "paired_candidate": "reserve"
+    },
+    {
+      "service_lineage_id": "MIBO-SL-002",
+      "short_id": "SL002",
+      "name": "Claude",
+      "provider": "Anthropic",
+      "ecological_live": true,
+      "paired_candidate": "eligible"
+    },
+    {
+      "service_lineage_id": "MIBO-SL-003",
+      "short_id": "SL003",
+      "name": "Gemini",
+      "provider": "Google",
+      "ecological_live": true,
+      "paired_candidate": "eligible"
+    },
+    {
+      "service_lineage_id": "MIBO-SL-004",
+      "short_id": "SL004",
+      "name": "Perplexity",
+      "provider": "Perplexity AI",
+      "ecological_live": true,
+      "paired_candidate": "no"
+    }
+  ]
+}
