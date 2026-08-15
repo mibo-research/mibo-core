@@ -125,6 +125,11 @@ def paired_credential_envs(provider_freeze: Path) -> list[str]:
     return sorted(set(envs))
 
 
+# Backward-compatible public helper used by existing tests and callers.
+def eligible_credential_envs(provider_freeze: Path) -> list[str]:
+    return paired_credential_envs(provider_freeze)
+
+
 def shadow_credential_envs(shadow_freeze: Path) -> list[str]:
     data = json.loads(shadow_freeze.read_text(encoding="utf-8"))
     envs: list[str] = []
