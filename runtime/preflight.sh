@@ -14,10 +14,15 @@ API_EVIDENCE_DIR="${MIBO_API_EVIDENCE_DIR:-/srv/mibo-private/${WAVE}-${SITE}-api
 python3 automation/mibo_runner.py verify-config
 python3 -m unittest discover -s automation/tests -v
 
-python3 automation/runtime_health.py \
-  --data-root "${MIBO_DATA_ROOT}" \
-  --provider-freeze "${MIBO_PROVIDER_FREEZE}" \
+HEALTH_ARGS=(
+  --data-root "${MIBO_DATA_ROOT}"
+  --provider-freeze "${MIBO_PROVIDER_FREEZE}"
   --out "/srv/mibo-private/${WAVE}-${SITE}-runtime-health.json"
+)
+if [[ -n "${MIBO_API_SHADOW_FREEZE:-}" ]]; then
+  HEALTH_ARGS+=(--shadow-freeze "${MIBO_API_SHADOW_FREEZE}")
+fi
+python3 automation/runtime_health.py "${HEALTH_ARGS[@]}"
 
 API_ARGS=(
   --freeze "${MIBO_PROVIDER_FREEZE}"
