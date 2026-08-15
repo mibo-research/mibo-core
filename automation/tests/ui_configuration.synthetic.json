@@ -6,9 +6,9 @@
   "frozen_at_utc": "2026-08-31T00:00:00Z",
   "terms_review_record": "synthetic",
   "ecological_live": {
-    "MIBO-SL-001": {"status":"ready_human_operated","interaction_mode":"human_only","terms_review_complete":true,"new_session_required":true,"account_tier":"synthetic","mode":"synthetic","search_tools_state":"synthetic","memory_personalization_state":"off","locale":"ja-JP"},
-    "MIBO-SL-002": {"status":"ready_human_operated","interaction_mode":"human_only","terms_review_complete":true,"new_session_required":true,"account_tier":"synthetic","mode":"synthetic","search_tools_state":"synthetic","memory_personalization_state":"off","locale":"ja-JP"},
-    "MIBO-SL-003": {"status":"ready_human_operated","interaction_mode":"human_only","terms_review_complete":true,"new_session_required":true,"account_tier":"synthetic","mode":"synthetic","search_tools_state":"synthetic","memory_personalization_state":"off","locale":"ja-JP"},
-    "MIBO-SL-004": {"status":"ready_human_operated","interaction_mode":"human_only","terms_review_complete":true,"new_session_required":true,"account_tier":"synthetic","mode":"synthetic","search_tools_state":"synthetic","memory_personalization_state":"off","locale":"ja-JP"}
+    "MIBO-SL-001": {"status":"ready_human_operated","interaction_mode":"human_only","terms_review_complete":true,"terms_review_date":"2026-08-31","terms_review_source":"synthetic-openai-terms","new_session_required":true,"account_tier":"synthetic","mode":"synthetic","search_tools_state":"synthetic","memory_personalization_state":"off","locale":"ja-JP"},
+    "MIBO-SL-002": {"status":"ready_human_operated","interaction_mode":"human_only","terms_review_complete":true,"terms_review_date":"2026-08-31","terms_review_source":"synthetic-anthropic-terms","new_session_required":true,"account_tier":"synthetic","mode":"synthetic","search_tools_state":"synthetic","memory_personalization_state":"off","locale":"ja-JP"},
+    "MIBO-SL-003": {"status":"ready_human_operated","interaction_mode":"human_only","terms_review_complete":true,"terms_review_date":"2026-08-31","terms_review_source":"synthetic-google-terms","new_session_required":true,"account_tier":"synthetic","mode":"synthetic","search_tools_state":"synthetic","memory_personalization_state":"off","locale":"ja-JP"},
+    "MIBO-SL-004": {"status":"ready_human_operated","interaction_mode":"human_only","terms_review_complete":true,"terms_review_date":"2026-08-31","terms_review_source":"synthetic-perplexity-terms","new_session_required":true,"account_tier":"synthetic","mode":"synthetic","search_tools_state":"synthetic","memory_personalization_state":"off","locale":"ja-JP"}
   }
 }
