@@ -13,6 +13,7 @@ from pathlib import Path
 from typing import Any
 
 import mibo_runner as core
+import operator_roster
 from raw_archive import canonical_json_bytes, wave_root
 
 
@@ -87,9 +88,10 @@ def _write_exclusive(path: Path, data: bytes) -> str:
 
 
 def capture_ui_observation(*, data_root: Path, row: dict, prompt_text: str, output_text: str,
-                           ui_configuration_path: Path, operator_id: str,
-                           operator_confirmed_new_session: bool,
+                           ui_configuration_path: Path, operator_roster_path: Path,
+                           operator_id: str, operator_confirmed_new_session: bool,
                            submitted_at_utc: str, captured_at_utc: str,
+                           sources_displayed: bool, sources_text: str | None = None,
                            displayed_service_mode: str | None = None,
                            displayed_model_label: str | None = None,
                            notes: str | None = None,
@@ -98,15 +100,26 @@ def capture_ui_observation(*, data_root: Path, row: dict, prompt_text: str, outp
         raise ValueError("Ecological Live capture accepts LUI rows only")
     if not operator_confirmed_new_session:
         raise ValueError("operator must confirm a fresh session before capture")
-    if not operator_id.strip():
+    operator_id = operator_id.strip()
+    if not operator_id:
         raise ValueError("operator_id is required")
     if not within_registered_window(row, now=now):
         raise ValueError("capture is outside the row's registered observation window")
+    if sources_displayed and not (sources_text or "").strip():
+        raise ValueError("displayed citations/source cards/links must be captured when sources_displayed is true")
+    if not sources_displayed and (sources_text or "").strip():
+        raise ValueError("sources_text was supplied while sources_displayed is false")
 
     config, config_sha = load_ui_configuration(
         ui_configuration_path, wave_id=row["wave_id"], site_id=row["site_id"]
     )
     service_cfg = validate_ui_service_configuration(config, row["service_lineage_id"])
+    roster, roster_sha = operator_roster.load_roster(
+        operator_roster_path, wave_id=row["wave_id"], site_id=row["site_id"]
+    )
+    operator_roster.assert_operator_assigned(
+        roster, service_lineage_id=row["service_lineage_id"], operator_id=operator_id
+    )
 
     actual_prompt_hash = hashlib.sha256(prompt_text.encode("utf-8")).hexdigest()
     if actual_prompt_hash != row["query_sha256"]:
@@ -116,13 +129,19 @@ def capture_ui_observation(*, data_root: Path, row: dict, prompt_text: str, outp
     attempt_id = row["attempt_id"]
     prompt_path = root / "ui_raw" / f"{attempt_id}.prompt.txt"
     output_path = root / "ui_raw" / f"{attempt_id}.output.txt"
-    prompt_bytes = prompt_text.encode("utf-8")
-    output_bytes = output_text.encode("utf-8")
-    prompt_hash = _write_exclusive(prompt_path, prompt_bytes)
-    output_hash = _write_exclusive(output_path, output_bytes)
+    prompt_hash = _write_exclusive(prompt_path, prompt_text.encode("utf-8"))
+    output_hash = _write_exclusive(output_path, output_text.encode("utf-8"))
+
+    sources_file: str | None = None
+    sources_hash: str | None = None
+    if sources_displayed:
+        sources_path = root / "ui_raw" / f"{attempt_id}.sources.txt"
+        sources_hash = _write_exclusive(sources_path, (sources_text or "").encode("utf-8"))
+        sources_file = str(sources_path.relative_to(root))
 
     metadata = {
         "attempt_id": attempt_id,
+        "retry_of_attempt_id": row.get("retry_of_attempt_id"),
         "protocol_doi": row["protocol_doi"],
         "wave_id": row["wave_id"],
         "site_id": row["site_id"],
@@ -136,6 +155,7 @@ def capture_ui_observation(*, data_root: Path, row: dict, prompt_text: str, outp
         "replication": row["replication"],
         "attempt": row["attempt"],
         "operator_id": operator_id,
+        "operator_roster_sha256": roster_sha,
         "operator_confirmed_new_session": True,
         "interaction_mode": "human_only",
         "browser_automation": False,
@@ -154,6 +174,10 @@ def capture_ui_observation(*, data_root: Path, row: dict, prompt_text: str, outp
         "prompt_sha256": prompt_hash,
         "output_file": str(output_path.relative_to(root)),
         "output_sha256": output_hash,
+        "sources_displayed": bool(sources_displayed),
+        "sources_capture_state": "captured" if sources_displayed else "none_displayed",
+        "sources_file": sources_file,
+        "sources_sha256": sources_hash,
         "notes": notes,
         "status": "captured_human_operated",
     }

@@ -1,0 +1,17 @@
+{
+  "schema_version": "1.0",
+  "protocol_doi": "10.5281/zenodo.21936410",
+  "wave_id": "MIBO-W01",
+  "site_id": "JP01",
+  "frozen_at_utc": null,
+  "operations_lead": null,
+  "data_steward": null,
+  "api_technical_lead": null,
+  "service_operators": {
+    "MIBO-SL-001": [],
+    "MIBO-SL-002": [],
+    "MIBO-SL-003": [],
+    "MIBO-SL-004": []
+  },
+  "note": "One operator may be assigned per service lineage; an operator may cover more than one lineage when workload permits. Freeze prospectively before W01."
+}

@@ -1,0 +1,16 @@
+{
+  "schema_version": "1.0",
+  "protocol_doi": "10.5281/zenodo.21936410",
+  "wave_id": "MIBO-W01",
+  "site_id": "JP01",
+  "frozen_at_utc": "2026-08-31T00:00:00Z",
+  "operations_lead": "lead-test",
+  "data_steward": "data-test",
+  "api_technical_lead": "api-test",
+  "service_operators": {
+    "MIBO-SL-001": ["operator-openai"],
+    "MIBO-SL-002": ["operator-anthropic"],
+    "MIBO-SL-003": ["operator-google"],
+    "MIBO-SL-004": ["operator-perplexity"]
+  }
+}

@@ -3,6 +3,7 @@ set -euo pipefail
 
 : "${MIBO_DATA_ROOT:?Set MIBO_DATA_ROOT to the private research-data root}"
 : "${MIBO_UI_CONFIGURATION:?Set MIBO_UI_CONFIGURATION to the finalized private UI configuration file}"
+: "${MIBO_OPERATOR_ROSTER:?Set MIBO_OPERATOR_ROSTER to the finalized private operator roster file}"
 : "${MIBO_PROVIDER_FREEZE:?Set MIBO_PROVIDER_FREEZE to the finalized private provider freeze file}"
 
 WAVE="${MIBO_WAVE:-MIBO-W01}"
@@ -21,6 +22,7 @@ python3 automation/prewave_bundle.py \
   --wave "${WAVE}" \
   --site "${SITE}" \
   --ui-configuration "${MIBO_UI_CONFIGURATION}" \
+  --operator-roster "${MIBO_OPERATOR_ROSTER}" \
   --provider-freeze "${MIBO_PROVIDER_FREEZE}" \
   --out-dir "${BUNDLE_DIR}"
 

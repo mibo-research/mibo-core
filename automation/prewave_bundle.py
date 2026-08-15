@@ -13,11 +13,11 @@ from datetime import datetime, timezone
 import hashlib
 import json
 from pathlib import Path
-import shutil
 from typing import Any
 
 import manifest_integrity
 import mibo_runner as core
+import operator_roster
 import ui_capture
 from raw_archive import canonical_json_bytes
 
@@ -96,22 +96,28 @@ def _write_csv_exclusive(rows: list[dict], path: Path) -> str:
 
 
 def build_bundle(*, wave_id: str, site_id: str, ui_configuration: Path,
-                 provider_freeze: Path, out_dir: Path) -> dict[str, Any]:
+                 operator_roster_path: Path, provider_freeze: Path,
+                 out_dir: Path) -> dict[str, Any]:
     if out_dir.exists():
         raise FileExistsError(f"bundle directory already exists: {out_dir}")
     config_errors = core.verify_frozen_config()
     if config_errors:
         raise ValueError("frozen config invalid: " + "; ".join(config_errors))
 
-    ui_config, ui_config_sha = _validate_ui_config(ui_configuration, wave_id, site_id)
-    freeze, freeze_sha, eligible = _validate_provider_freeze(provider_freeze, wave_id, site_id)
+    _, ui_config_sha = _validate_ui_config(ui_configuration, wave_id, site_id)
+    roster, roster_sha = operator_roster.load_roster(
+        operator_roster_path, wave_id=wave_id, site_id=site_id
+    )
+    _, freeze_sha, eligible = _validate_provider_freeze(provider_freeze, wave_id, site_id)
 
     out_dir.mkdir(parents=True)
     configuration_dir = out_dir / "configuration"
     manifests_dir = out_dir / "manifests"
     ui_copy = configuration_dir / "ui_configuration.json"
+    roster_copy = configuration_dir / "operator_roster.json"
     paired_copy = configuration_dir / "provider_freeze.json"
     _copy_exclusive(ui_configuration, ui_copy)
+    _copy_exclusive(operator_roster_path, roster_copy)
     _copy_exclusive(provider_freeze, paired_copy)
 
     ui_rows = core.generate_ui_manifest(wave_id, site_id)
@@ -144,6 +150,10 @@ def build_bundle(*, wave_id: str, site_id: str, ui_configuration: Path,
         "ui": {
             "configuration_file": str(ui_copy.relative_to(out_dir)),
             "configuration_sha256": ui_config_sha,
+            "operator_roster_file": str(roster_copy.relative_to(out_dir)),
+            "operator_roster_sha256": roster_sha,
+            "operations_lead": roster["operations_lead"],
+            "service_operators": roster["service_operators"],
             "manifest_file": str(ui_manifest.relative_to(out_dir)),
             "manifest_sha256": ui_manifest_sha,
             "rows": len(ui_rows),
@@ -171,12 +181,13 @@ def build_bundle(*, wave_id: str, site_id: str, ui_configuration: Path,
         "site_id": site_id,
         "authorized": False,
         "authorized_at_utc": None,
-        "operations_lead": None,
+        "operations_lead": roster["operations_lead"],
         "terms_review_complete": False,
         "institutional_process_checked": False,
         "dry_run_complete": False,
         "manifest_sha256": paired_manifest_sha,
         "provider_freeze_sha256": freeze_sha,
+        "operator_roster_sha256": roster_sha,
         "prewave_bundle_report_sha256": report_sha,
         "note": "Human sign-off template only. Set gates true prospectively after completing the Pre-Wave-1 Execution Gate; this builder never authorizes collection."
     }
@@ -203,6 +214,7 @@ def main() -> int:
     p.add_argument("--wave", required=True)
     p.add_argument("--site", default="JP01")
     p.add_argument("--ui-configuration", required=True, type=Path)
+    p.add_argument("--operator-roster", required=True, type=Path)
     p.add_argument("--provider-freeze", required=True, type=Path)
     p.add_argument("--out-dir", required=True, type=Path)
     args = p.parse_args()
@@ -210,6 +222,7 @@ def main() -> int:
         wave_id=args.wave,
         site_id=args.site,
         ui_configuration=args.ui_configuration,
+        operator_roster_path=args.operator_roster,
         provider_freeze=args.provider_freeze,
         out_dir=args.out_dir,
     )
