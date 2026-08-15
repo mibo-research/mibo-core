@@ -46,3 +46,11 @@ jobs:
             --out /tmp/w01-paired.csv
           python automation/mibo_runner.py validate /tmp/w01-paired.csv
           python automation/manifest_integrity.py /tmp/w01-paired.csv
+      - name: Generate and validate exploratory four-lineage API Shadow manifest
+        run: |
+          python automation/shadow_runner.py generate \
+            --wave MIBO-W01 --site JP01 \
+            --freeze automation/tests/api_shadow_freeze.synthetic.json \
+            --out /tmp/w01-api-shadow.csv
+          python automation/shadow_runner.py validate /tmp/w01-api-shadow.csv \
+            --freeze automation/tests/api_shadow_freeze.synthetic.json
