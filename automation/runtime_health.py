@@ -45,7 +45,21 @@ def ntp_state() -> dict[str, Any]:
 
 
 def credential_presence(env_names: list[str]) -> dict[str, bool]:
-    return {name: bool(os.environ.get(name)) for name in env_names}
+    return {name: bool(os.environ.get(name)) for name in sorted(set(env_names))}
+
+
+def eligible_credential_envs(provider_freeze: Path) -> list[str]:
+    data = json.loads(provider_freeze.read_text(encoding="utf-8"))
+    envs: list[str] = []
+    for cfg in (data.get("paired_api") or {}).values():
+        if not isinstance(cfg, dict) or cfg.get("status") != "eligible":
+            continue
+        profile = cfg.get("request_profile") or {}
+        env_name = profile.get("api_key_env")
+        if not isinstance(env_name, str) or not env_name:
+            raise ValueError("eligible paired provider is missing request_profile.api_key_env")
+        envs.append(env_name)
+    return sorted(set(envs))
 
 
 def build_report(*, repo_root: Path, data_root: Path, credential_envs: list[str]) -> dict[str, Any]:
@@ -65,6 +79,7 @@ def build_report(*, repo_root: Path, data_root: Path, credential_envs: list[str]
             "free_bytes": usage.free,
             "free_gib": round(usage.free / (1024 ** 3), 3),
         },
+        "required_credential_envs": sorted(set(credential_envs)),
         "credentials_present": creds,
         "credentials_values_recorded": False,
     }
@@ -83,14 +98,18 @@ def main() -> int:
     p = argparse.ArgumentParser()
     p.add_argument("--repo-root", type=Path, default=Path(__file__).resolve().parents[1])
     p.add_argument("--data-root", type=Path, required=True)
+    p.add_argument("--provider-freeze", type=Path)
     p.add_argument("--credential-env", action="append", default=[])
     p.add_argument("--out", type=Path)
     args = p.parse_args()
     args.data_root.mkdir(parents=True, exist_ok=True)
+    envs = list(args.credential_env)
+    if args.provider_freeze:
+        envs.extend(eligible_credential_envs(args.provider_freeze))
     report = build_report(
         repo_root=args.repo_root,
         data_root=args.data_root,
-        credential_envs=args.credential_env,
+        credential_envs=envs,
     )
     text = json.dumps(report, indent=2, sort_keys=True) + "\n"
     if args.out:
