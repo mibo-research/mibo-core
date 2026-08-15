@@ -12,6 +12,7 @@ sys.path.insert(0, str(HERE))
 import provider_adapters as pa
 import raw_archive as ra
 import retry_policy as rp
+import wave_waiter as ww
 
 
 class RetryPolicyTests(unittest.TestCase):
@@ -33,6 +34,14 @@ class RetryPolicyTests(unittest.TestCase):
         t = datetime(2026, 9, 1, 1, 0, tzinfo=timezone.utc)
         d = rp.decide_retry(attempt=1, failure_kind="rate_limit", failed_at=t, provider_retry_after_seconds=1200)
         self.assertEqual(d.delay_seconds, 1200)
+
+
+class WaveWaiterTests(unittest.TestCase):
+    def test_w01_start_is_read_from_frozen_wave_calendar(self):
+        one_hour_before = datetime(2026, 8, 31, 23, 0, tzinfo=timezone.utc)
+        self.assertEqual(ww.seconds_until_wave_start("MIBO-W01", one_hour_before), 3600.0)
+        at_open = datetime(2026, 9, 1, 0, 0, tzinfo=timezone.utc)
+        self.assertEqual(ww.seconds_until_wave_start("MIBO-W01", at_open), 0.0)
 
 
 class AdapterPayloadTests(unittest.TestCase):
