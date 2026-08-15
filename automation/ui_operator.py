@@ -134,6 +134,22 @@ def select_next_row(rows: list[dict], *, data_root: Path, now: datetime | None =
     return None
 
 
+def _write_retry_task(*, data_root: Path, row: dict, retry_row: dict, due_at_utc: str,
+                      failure_kind: str, status: str) -> dict:
+    root = _root(data_root, row)
+    task = {
+        "original_attempt_id": row["attempt_id"],
+        "retry_attempt_id": retry_row["attempt_id"],
+        "due_at_utc": due_at_utc,
+        "failure_kind": failure_kind,
+        "row": retry_row,
+        "status": status,
+    }
+    path = root / "manifests" / "ui_retries" / f"{retry_row['attempt_id']}.json"
+    _write_exclusive(path, task)
+    return task
+
+
 def schedule_retry(*, data_root: Path, row: dict, failure_kind: str, failed_at: datetime,
                    provider_retry_after_seconds: int | None = None) -> dict | None:
     _, window_close = ui_capture.window_bounds(row["wave_id"], row["window_id"])
@@ -144,22 +160,14 @@ def schedule_retry(*, data_root: Path, row: dict, failure_kind: str, failed_at: 
     if not decision.retry:
         return None
     retry_row = _clone_retry_row(row, int(decision.next_attempt))
-    root = _root(data_root, row)
-    task = {
-        "original_attempt_id": row["attempt_id"],
-        "retry_attempt_id": retry_row["attempt_id"],
-        "due_at_utc": decision.due_at_utc,
-        "failure_kind": failure_kind,
-        "row": retry_row,
-        "status": "scheduled_technical_retry",
-    }
-    path = root / "manifests" / "ui_retries" / f"{retry_row['attempt_id']}.json"
-    _write_exclusive(path, task)
-    return task
+    return _write_retry_task(
+        data_root=data_root, row=row, retry_row=retry_row, due_at_utc=decision.due_at_utc,
+        failure_kind=failure_kind, status="scheduled_technical_retry",
+    )
 
 
 def pause_lineage_for_outage(*, data_root: Path, row: dict, operations_lead: str,
-                             resume_after_utc: str | None, notes: str | None) -> dict:
+                             resume_after_utc: str, notes: str | None) -> dict:
     if not operations_lead.strip():
         raise ValueError("Operations Lead is required for an outage pause")
     record = {
@@ -183,6 +191,27 @@ def pause_lineage_for_outage(*, data_root: Path, row: dict, operations_lead: str
         record={"deviation_id": deviation_id, **record},
     )
     return record
+
+
+def schedule_outage_recovery(*, data_root: Path, row: dict, failed_at: datetime,
+                             recovery_at_utc: str) -> dict:
+    _, registered_end = ui_capture.window_bounds(row["wave_id"], row["window_id"])
+    minimum = decide_retry(
+        attempt=int(row["attempt"]), failure_kind="temporary_interface_failure",
+        failed_at=failed_at, field_close=registered_end,
+    )
+    if not minimum.retry:
+        raise ValueError("no protocol-permitted retry remains inside the registered window")
+    recovery = ui_capture.parse_utc(recovery_at_utc)
+    if recovery < ui_capture.parse_utc(minimum.due_at_utc):
+        raise ValueError("recovery block is earlier than the registered minimum retry delay")
+    if recovery >= registered_end:
+        raise ValueError("recovery block falls outside the registered observation window")
+    retry_row = _clone_retry_row(row, int(minimum.next_attempt))
+    return _write_retry_task(
+        data_root=data_root, row=row, retry_row=retry_row, due_at_utc=utc_text(recovery),
+        failure_kind="temporary_interface_failure", status="scheduled_outage_recovery_retry",
+    )
 
 
 def _read_multiline_capture() -> str:
@@ -249,19 +278,28 @@ def run_one(*, row: dict, configuration: Path, data_root: Path, operator_id: str
         return
 
     if result == "OUTAGE":
+        failed_at = utc_now()
         lead = input("Operations Lead name/id: ").strip()
-        resume = input("Recovery block not-before UTC (ISO 8601) or Enter if not yet scheduled: ").strip() or None
-        if resume is not None:
-            parsed = ui_capture.parse_utc(resume)
-            _, registered_end = ui_capture.window_bounds(row["wave_id"], row["window_id"])
-            if parsed >= registered_end:
-                raise SystemExit("recovery time is outside the registered observation window")
+        recovery_text = input("Scheduled recovery block not-before UTC (ISO 8601): ").strip()
+        if not recovery_text:
+            raise SystemExit("a documented recovery-block time is required; nothing written")
         notes = input("Outage notes: ").strip() or None
+        try:
+            retry = schedule_outage_recovery(
+                data_root=data_root, row=row, failed_at=failed_at, recovery_at_utc=recovery_text,
+            )
+        except ValueError as exc:
+            raise SystemExit(str(exc)) from exc
+        archive_failure(
+            data_root=data_root, row=row, failure_kind="temporary_interface_failure",
+            message="apparent service-wide outage; lineage paused for documented recovery block",
+            failed_at_utc=utc_text(failed_at),
+        )
         record = pause_lineage_for_outage(
             data_root=data_root, row=row, operations_lead=lead,
-            resume_after_utc=resume, notes=notes,
+            resume_after_utc=retry["due_at_utc"], notes=notes,
         )
-        print(json.dumps({"status": "LINEAGE_PAUSED", **record}, indent=2))
+        print(json.dumps({"status": "LINEAGE_PAUSED_FOR_RECOVERY", "retry": retry, **record}, indent=2))
         return
 
     raise SystemExit("unknown result; nothing written")
