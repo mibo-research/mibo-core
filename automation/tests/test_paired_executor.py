@@ -22,11 +22,13 @@ def sha256_file(path: Path) -> str:
 
 
 class PairedExecutorPreflightTests(unittest.TestCase):
-    def make_files(self, root: Path):
+    def make_files(self, root: Path, *, mutate_rows=None):
         manifest = root / "paired.csv"
         rows = core.generate_paired_manifest(
             "MIBO-W01", ["MIBO-SL-002", "MIBO-SL-003"], FIXTURE
         )
+        if mutate_rows is not None:
+            mutate_rows(rows)
         core.write_csv(rows, manifest)
         auth = root / "authorization.json"
         auth.write_text(json.dumps({
@@ -74,6 +76,35 @@ class PairedExecutorPreflightTests(unittest.TestCase):
                     authorization_path=auth,
                     data_root=root / "data",
                     now=datetime(2026, 9, 1, 1, 0, tzinfo=timezone.utc),
+                )
+
+    def test_preflight_rejects_model_id_not_bound_to_freeze(self):
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d)
+            manifest, auth = self.make_files(
+                root, mutate_rows=lambda rows: rows[0].__setitem__("model_id", "forged-model-id")
+            )
+            with self.assertRaisesRegex(ValueError, "model_id does not match provider freeze"):
+                pe.preflight(
+                    manifest_path=manifest,
+                    freeze_path=FIXTURE,
+                    authorization_path=auth,
+                    data_root=root / "data",
+                    now=datetime(2026, 9, 1, 1, 0, tzinfo=timezone.utc),
+                )
+
+    def test_execution_preflight_requires_private_provider_credentials(self):
+        with tempfile.TemporaryDirectory() as d, mock.patch.dict(os.environ, {}, clear=True):
+            root = Path(d)
+            manifest, auth = self.make_files(root)
+            with self.assertRaisesRegex(ValueError, "required credential environment variable"):
+                pe.preflight(
+                    manifest_path=manifest,
+                    freeze_path=FIXTURE,
+                    authorization_path=auth,
+                    data_root=root / "data",
+                    now=datetime(2026, 9, 1, 1, 0, tzinfo=timezone.utc),
+                    require_credentials=True,
                 )
 
     def test_execute_requires_explicit_runtime_sentinel_before_any_call(self):
