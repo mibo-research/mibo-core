@@ -1,0 +1,42 @@
+name: MIBO automation CI
+
+on:
+  pull_request:
+    paths:
+      - "automation/**"
+      - "AGENTS.md"
+      - ".github/workflows/automation-ci.yml"
+  push:
+    branches: [main]
+    paths:
+      - "automation/**"
+      - "AGENTS.md"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Verify frozen config integrity
+        run: python automation/mibo_runner.py verify-config
+      - name: Unit tests
+        run: python -m unittest discover -s automation/tests -v
+      - name: Generate W01 UI manifest
+        run: |
+          python automation/mibo_runner.py generate-ui --wave MIBO-W01 --site JP01 --out /tmp/w01-ui.csv
+          python automation/mibo_runner.py validate /tmp/w01-ui.csv
+      - name: Generate synthetic paired manifest behind freeze gate
+        run: |
+          python automation/mibo_runner.py generate-paired \
+            --wave MIBO-W01 --site JP01 \
+            --freeze automation/tests/provider_freeze.synthetic.json \
+            --lineage MIBO-SL-002 --lineage MIBO-SL-003 \
+            --out /tmp/w01-paired.csv
+          python automation/mibo_runner.py validate /tmp/w01-paired.csv

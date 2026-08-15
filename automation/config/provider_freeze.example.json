@@ -1,0 +1,33 @@
+{
+  "schema_version": "1.0",
+  "wave_id": "MIBO-W01",
+  "site_id": "JP01",
+  "frozen_at_utc": null,
+  "ecological_live": {},
+  "paired_api": {
+    "MIBO-SL-001": {
+      "status": "pending",
+      "live_model_id": null,
+      "frozen_model_id": null,
+      "comparability_class": null
+    },
+    "MIBO-SL-002": {
+      "status": "pending",
+      "live_model_id": null,
+      "frozen_model_id": null,
+      "comparability_class": null
+    },
+    "MIBO-SL-003": {
+      "status": "pending",
+      "live_model_id": null,
+      "frozen_model_id": null,
+      "comparability_class": null
+    },
+    "MIBO-SL-004": {
+      "status": "not_admissible_v1",
+      "live_model_id": null,
+      "frozen_model_id": null,
+      "comparability_class": "C"
+    }
+  }
+}

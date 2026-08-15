@@ -1,0 +1,40 @@
+name: Codex observer maintainer
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  codex:
+    runs-on: ubuntu-latest
+    environment: codex-maintenance
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Verify frozen config and tests first
+        run: |
+          python automation/mibo_runner.py verify-config
+          python -m unittest discover -s automation/tests -v
+      - name: Codex readiness review
+        uses: openai/codex-action@v1
+        with:
+          openai-api-key: ${{ secrets.OPENAI_API_KEY }}
+          prompt-file: .github/codex/prompts/maintain-observer.md
+          output-file: codex-readiness.md
+          permission-profile: ":read-only"
+          safety-strategy: drop-sudo
+          codex-version: "0.147.0"
+          codex-args: '["--ephemeral"]'
+      - name: Upload Codex review
+        uses: actions/upload-artifact@v4
+        with:
+          name: codex-readiness
+          path: codex-readiness.md
+          retention-days: 14
