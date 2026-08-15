@@ -4,7 +4,7 @@ After=network-online.target time-sync.target
 Wants=network-online.target time-sync.target
 
 [Service]
-Type=oneshot
+Type=simple
 User=mibo
 Group=mibo
 WorkingDirectory=/opt/mibo-core
@@ -12,6 +12,8 @@ EnvironmentFile=/etc/mibo/mibo-paired.env
 ExecStartPre=/usr/bin/python3 automation/mibo_runner.py verify-config
 ExecStartPre=/usr/bin/python3 automation/manifest_integrity.py ${MIBO_MANIFEST}
 ExecStart=/usr/bin/python3 automation/wave_waiter.py --wave ${MIBO_WAVE} --manifest ${MIBO_MANIFEST} --freeze ${MIBO_FREEZE} --authorization ${MIBO_AUTHORIZATION} --data-root ${MIBO_DATA_ROOT}
+Restart=no
+UMask=0077
 NoNewPrivileges=true
 PrivateTmp=true
 ProtectSystem=strict
