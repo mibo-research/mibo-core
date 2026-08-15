@@ -273,7 +273,7 @@ def call_perplexity(*, model_id: str, prompt: str, profile: dict[str, Any], time
     if data.get("error"):
         raise AdapterFailure(kind="provider_error", message="Perplexity error response", http_status=status, response_body=raw)
     return AdapterResult(
-        provider="Perplexity", requested_model=model_id, returned_model=data.get("model"),
+        provider="Perplexity AI", requested_model=model_id, returned_model=data.get("model"),
         request_payload=payload, response_json=data, raw_response_text=raw,
         http_status=status, started_at_utc=started, completed_at_utc=completed,
         duration_ms=duration, usage=data.get("usage"), output_text=_extract_perplexity_text(data),
@@ -287,6 +287,7 @@ def call_provider(*, provider: str, model_id: str, prompt: str, profile: dict[st
         "Anthropic": "anthropic_messages",
         "Google": "gemini_generate_content",
         "Perplexity": "perplexity_sonar",
+        "Perplexity AI": "perplexity_sonar",
     }.get(provider)
     if expected is None:
         raise ValueError(f"no API adapter is registered for provider {provider}")
