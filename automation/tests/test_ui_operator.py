@@ -93,6 +93,24 @@ class EcologicalLiveCaptureTests(unittest.TestCase):
             )
             self.assertIsNone(retry)
 
+    def test_outage_recovery_requires_minimum_delay_and_stays_in_window(self):
+        row = self.row()
+        failed = datetime(2026, 9, 1, 2, 0, tzinfo=timezone.utc)
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d)
+            with self.assertRaisesRegex(ValueError, "minimum retry delay"):
+                op.schedule_outage_recovery(
+                    data_root=root, row=row, failed_at=failed,
+                    recovery_at_utc="2026-09-01T02:05:00Z",
+                )
+            task = op.schedule_outage_recovery(
+                data_root=root, row=row, failed_at=failed,
+                recovery_at_utc="2026-09-01T03:00:00Z",
+            )
+            self.assertEqual(task["status"], "scheduled_outage_recovery_retry")
+            self.assertEqual(task["row"]["attempt"], 2)
+            self.assertEqual(task["row"]["retry_of_attempt_id"], row["attempt_id"])
+
     def test_operator_source_contains_no_browser_or_http_automation(self):
         source = (HERE / "ui_operator.py").read_text(encoding="utf-8") + (HERE / "ui_capture.py").read_text(encoding="utf-8")
         for forbidden in ("selenium", "playwright", "urlopen(", "requests.get", "requests.post", "webdriver"):
