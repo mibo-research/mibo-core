@@ -14,9 +14,7 @@ python3 -m unittest discover -s automation/tests -v
 
 python3 automation/runtime_health.py \
   --data-root "${MIBO_DATA_ROOT}" \
-  --credential-env OPENAI_API_KEY \
-  --credential-env ANTHROPIC_API_KEY \
-  --credential-env GEMINI_API_KEY \
+  --provider-freeze "${MIBO_PROVIDER_FREEZE}" \
   --out "/srv/mibo-private/${WAVE}-${SITE}-runtime-health.json"
 
 python3 automation/prewave_bundle.py \
