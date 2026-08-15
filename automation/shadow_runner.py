@@ -26,7 +26,7 @@ EXPECTED_ADAPTER = {
     "OpenAI": "openai_responses",
     "Anthropic": "anthropic_messages",
     "Google": "gemini_generate_content",
-    "Perplexity": "perplexity_sonar",
+    "Perplexity AI": "perplexity_sonar",
 }
 FORBIDDEN_PROFILE_KEYS = {
     "tools", "tool_choice", "instructions", "system", "system_instruction",
@@ -103,7 +103,7 @@ def load_shadow_freeze(path: Path, wave_id: str, site_id: str) -> tuple[dict[str
             raise ValueError(f"{sid} request_profile requires api_key_env")
         if service["provider"] == "Anthropic" and profile.get("max_output_tokens") is None:
             raise ValueError(f"{sid} Anthropic shadow profile requires max_output_tokens")
-        if service["provider"] == "Perplexity" and profile.get("disable_search") is not True:
+        if service["provider"] == "Perplexity AI" and profile.get("disable_search") is not True:
             raise ValueError(f"{sid} Perplexity closed shadow profile requires disable_search=true")
     return data, sha256_file(path)
 
