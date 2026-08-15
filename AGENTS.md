@@ -49,6 +49,17 @@
 - A failed API readiness check blocks or narrows the affected execution path; it does not authorize model substitution.
 - Perplexity API catalog evidence may be recorded for operational awareness, but Perplexity remains non-admissible for the v1.0 paired module unless a future protocol version changes that rule.
 
+## API Shadow Archive firewall
+- `ASH` is an **exploratory auxiliary** API-only line, not a MIBO Core v1.0 confirmatory condition.
+- API Shadow data must be stored under the separate `auxiliary/api-shadow-v0.1/` namespace and must never be written into the Core `v1.0/` raw-data namespace.
+- Never relabel `ASH` as Ecological Live, Paired Live Reference, or Frozen Reference.
+- Never pool API Shadow rows into v1.0 confirmatory hypothesis tests, G-theory certification, or registered effect estimates.
+- API Shadow v0.1 uses all 24 frozen query forms with `k=10` per admitted lineage and an environment-closed stateless request profile.
+- Perplexity may participate in the exploratory API Shadow only when Sonar search is explicitly disabled (`disable_search=true`); this does not make Perplexity admissible for the v1.0 paired module.
+- Shadow model IDs are prospectively human-frozen in a separate `api_shadow_freeze` record. API discovery may verify those IDs but may not choose, replace, or auto-promote them.
+- Shadow execution uses its own authorization record and `MIBO_API_SHADOW_EXECUTION=ENABLED_AFTER_SHADOW_GATE`; the paired Core execution sentinel does not authorize Shadow collection and vice versa.
+- Shadow missingness is retained; no fallback model or imputation is allowed after output inspection.
+
 ## Retry and capture rules
 - Only registered technical failures may trigger retries.
 - Preserve the maximum of two retries: Retry 1 after at least 10 minutes; Retry 2 after at least an additional 30 minutes. A provider-mandated longer wait may extend but never shorten the interval.
@@ -62,4 +73,5 @@
 - Flag any workflow that exposes secrets to untrusted PR code.
 - Flag any browser automation or programmatic extraction added to Ecological Live without prospectively archived provider permission.
 - Flag any API-discovery feature that auto-selects, promotes, substitutes, or silently reroutes a frozen provider/model.
+- Flag any code path that lets API Shadow data enter a confirmatory Core namespace or analysis.
 - Flag any GitHub Actions `schedule` as authoritative timing for scientific collection; GitHub scheduled events can be delayed. Scheduling may be used for reminders and preflight, not as the sole clock for registered windows.

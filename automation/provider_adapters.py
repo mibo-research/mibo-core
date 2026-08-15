@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-"""Protocol-constrained provider API adapters for the MIBO paired module.
+"""Protocol-constrained provider API adapters used by MIBO API runtimes.
 
-Exact model IDs and generation settings come from the prospectively completed
-Configuration Freeze Record. No adapter enables browsing, retrieval, file
-access, tools, or conversation memory. Network execution is only invoked by
-the fail-closed paired executor.
+Exact model IDs and generation settings come from prospectively completed
+execution records. Core paired execution uses only its registered providers;
+the exploratory API Shadow may additionally use Perplexity Sonar. Network
+execution is invoked only by fail-closed executors.
 """
 from __future__ import annotations
 
@@ -237,19 +237,66 @@ def call_gemini(*, model_id: str, prompt: str, profile: dict[str, Any], timeout_
     )
 
 
+def _extract_perplexity_text(data: dict[str, Any]) -> str:
+    chunks: list[str] = []
+    for choice in data.get("choices", []) or []:
+        message = choice.get("message") or {}
+        text = message.get("content")
+        if isinstance(text, str):
+            chunks.append(text)
+    return "\n".join(chunks)
+
+
+def call_perplexity(*, model_id: str, prompt: str, profile: dict[str, Any], timeout_s: int = 180) -> AdapterResult:
+    endpoint = profile.get("endpoint", "https://api.perplexity.ai/v1/sonar")
+    payload: dict[str, Any] = {
+        "model": model_id,
+        "messages": [{"role": "user", "content": prompt}],
+        "stream": False,
+    }
+    if profile.get("max_output_tokens") is not None:
+        payload["max_tokens"] = int(profile["max_output_tokens"])
+    for key in ("temperature", "top_p"):
+        if profile.get(key) is not None:
+            payload[key] = profile[key]
+    if "disable_search" in profile:
+        payload["web_search_options"] = {"disable_search": bool(profile["disable_search"])}
+    status, raw, data, duration, started, completed = _post_json(
+        url=endpoint,
+        headers={
+            "Authorization": f"Bearer {_api_key(profile.get('api_key_env', 'PERPLEXITY_API_KEY'))}",
+            "Content-Type": "application/json",
+        },
+        payload=payload,
+        timeout_s=timeout_s,
+    )
+    if data.get("error"):
+        raise AdapterFailure(kind="provider_error", message="Perplexity error response", http_status=status, response_body=raw)
+    return AdapterResult(
+        provider="Perplexity AI", requested_model=model_id, returned_model=data.get("model"),
+        request_payload=payload, response_json=data, raw_response_text=raw,
+        http_status=status, started_at_utc=started, completed_at_utc=completed,
+        duration_ms=duration, usage=data.get("usage"), output_text=_extract_perplexity_text(data),
+    )
+
+
 def call_provider(*, provider: str, model_id: str, prompt: str, profile: dict[str, Any], timeout_s: int = 180) -> AdapterResult:
     adapter = profile.get("adapter")
     expected = {
         "OpenAI": "openai_responses",
         "Anthropic": "anthropic_messages",
         "Google": "gemini_generate_content",
+        "Perplexity": "perplexity_sonar",
+        "Perplexity AI": "perplexity_sonar",
     }.get(provider)
     if expected is None:
-        raise ValueError(f"no paired API adapter is registered for provider {provider}")
+        raise ValueError(f"no API adapter is registered for provider {provider}")
     if adapter != expected:
         raise ValueError(f"provider {provider} requires adapter {expected}, got {adapter!r}")
     if provider == "OpenAI":
         return call_openai(model_id=model_id, prompt=prompt, profile=profile, timeout_s=timeout_s)
     if provider == "Anthropic":
         return call_anthropic(model_id=model_id, prompt=prompt, profile=profile, timeout_s=timeout_s)
-    return call_gemini(model_id=model_id, prompt=prompt, profile=profile, timeout_s=timeout_s)
+    if provider == "Google":
+        return call_gemini(model_id=model_id, prompt=prompt, profile=profile, timeout_s=timeout_s)
+    return call_perplexity(model_id=model_id, prompt=prompt, profile=profile, timeout_s=timeout_s)
