@@ -7,14 +7,14 @@
 
 ## Codex role
 - Codex is a **software-engineering and review agent**, not an adaptive scientific observer.
-- Codex may implement, test, document, and review deterministic collectors, manifests, provider adapters, QC, and packaging.
+- Codex may implement, test, document, and review deterministic collectors, manifests, provider adapters, API-readiness probes, QC, and packaging.
 - Codex must never decide which prompt to ask, rewrite a prompt, replace a missing observation, change a retry rule, or select a provider/model because of an observed answer.
 - During an active wave, do not self-modify collection code. A technical repair requires a new commit hash and a recorded deviation.
 
 ## Data and secrets
 - Never commit API keys, cookies, access tokens, session exports, account credentials, completed private authorization records, or restricted raw outputs.
 - Tests use synthetic fixtures only and must not make live provider or UI calls.
-- Raw observation data must be written to the configured research-data store, not to this public repository.
+- Raw observation data and private API-readiness evidence must be written to the configured research-data/private store, not to this public repository.
 - Public GitHub artifacts should contain code, schemas, manifests, hashes, examples, and disclosure-safe summaries only.
 
 ## Engineering expectations
@@ -40,6 +40,15 @@
 - Paired API adapters must disable retrieval/tools and match material generation/reasoning settings as required by the v1.0 comparability rules.
 - Exact model IDs and material request settings come from the prospectively frozen execution record; do not hard-code them in source.
 
+## API discovery and readiness automation
+- Official provider model-catalog and model-metadata endpoints may be used before a wave to reduce manual availability checking.
+- API discovery/readiness evidence is operational evidence, not a mechanism for changing the scientific panel or comparability rules.
+- Never auto-select the “best” model, promote a pending provider, substitute another model, or rewrite the Configuration Freeze Record from API discovery results.
+- Exact prospectively frozen Live/Frozen IDs may be verified automatically against provider metadata endpoints and recorded with timestamps and SHA-256 hashes.
+- Synthetic smoke tests must use only a fixed non-confirmatory readiness prompt, must be explicitly enabled by `MIBO_API_SMOKE_TEST=ENABLED_AFTER_TERMS_REVIEW`, and must never use a registered MIBO query.
+- A failed API readiness check blocks or narrows the affected execution path; it does not authorize model substitution.
+- Perplexity API catalog evidence may be recorded for operational awareness, but Perplexity remains non-admissible for the v1.0 paired module unless a future protocol version changes that rule.
+
 ## Retry and capture rules
 - Only registered technical failures may trigger retries.
 - Preserve the maximum of two retries: Retry 1 after at least 10 minutes; Retry 2 after at least an additional 30 minutes. A provider-mandated longer wait may extend but never shorten the interval.
@@ -52,4 +61,5 @@
 - Flag any change that could alter the scientific estimand, prompt text, execution window, retry eligibility, missingness rule, or provider comparability after outcomes are observable.
 - Flag any workflow that exposes secrets to untrusted PR code.
 - Flag any browser automation or programmatic extraction added to Ecological Live without prospectively archived provider permission.
+- Flag any API-discovery feature that auto-selects, promotes, substitutes, or silently reroutes a frozen provider/model.
 - Flag any GitHub Actions `schedule` as authoritative timing for scientific collection; GitHub scheduled events can be delayed. Scheduling may be used for reminders and preflight, not as the sole clock for registered windows.
