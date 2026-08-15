@@ -4,6 +4,12 @@ This directory contains a **fail-closed** runtime template for the MIBO Core pai
 
 The service must run on a dedicated Japan-site machine or VM with synchronized UTC time. GitHub Actions is used for source control, CI and review, not as the authoritative scientific clock.
 
+## Automatic W01 start
+
+`mibo-paired.service` may be started before Wave 1. `automation/wave_waiter.py` reads the frozen UTC timestamp directly from `waves_v1.0.json`, sleeps on the controlled runtime, and launches the paired executor when the registered field window opens. For W01, the registered start is 2026-09-01 00:00 UTC / 09:00 JST.
+
+This removes GitHub-hosted scheduling from the scientific timing path. The machine clock must still be synchronized before the wave.
+
 ## Safety gates
 
 Provider execution remains impossible unless all of the following are true:
@@ -30,6 +36,10 @@ Exact model identifiers, output limits and any optional materially matched gener
 ## Retry rule
 
 Only technical failures are eligible. Retry 1 waits at least 10 minutes; Retry 2 waits at least an additional 30 minutes. A longer provider-mandated `Retry-After` extends, never shortens, the registered wait. Valid refusals, safety responses, nonanswers and clarification requests are retained as observations and are not retried.
+
+## Paired timing
+
+The executor preserves the 20-call Provider × Anchor Item block structure. If a block exceeds two hours, valid calls are retained and a timing-deviation record is written for later eligibility review rather than silently dropping or recollecting data.
 
 ## Raw data
 
