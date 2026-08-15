@@ -22,6 +22,14 @@ SYNTHETIC_PROMPT = (
 )
 
 
+def _api_provider_name(service_provider: str) -> str:
+    return "Perplexity" if service_provider == "Perplexity AI" else service_provider
+
+
+def _safe_name(value: str) -> str:
+    return value.lower().replace(" ", "-").replace("/", "_")
+
+
 def _write_exclusive(path: Path, obj: Any) -> str:
     data = canonical_json_bytes(obj)
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -44,14 +52,16 @@ def run_preflight(*, freeze_path: Path, out_dir: Path, smoke: bool = False,
 
     services = {s["service_lineage_id"]: s for s in __import__("mibo_runner")._services()}
     eligible = shadow_runner.eligible_lineages(freeze)
-    providers = sorted({services[sid]["provider"] for sid in eligible})
+    service_providers = sorted({services[sid]["provider"] for sid in eligible})
     catalogs: dict[str, dict[str, Any]] = {}
     errors: list[str] = []
 
-    for provider in providers:
-        result, ids = api.fetch_catalog(provider, timeout_s=timeout_s)
+    for service_provider in service_providers:
+        api_provider = _api_provider_name(service_provider)
+        result, ids = api.fetch_catalog(api_provider, timeout_s=timeout_s)
         evidence = {
-            "provider": provider,
+            "service_provider_label": service_provider,
+            "api_provider": api_provider,
             "endpoint": result.endpoint,
             "http_status": result.status,
             "started_at_utc": result.started_at_utc,
@@ -61,9 +71,10 @@ def run_preflight(*, freeze_path: Path, out_dir: Path, smoke: bool = False,
             "normalized_model_ids": ids,
             "credential_value_recorded": False,
         }
-        path = out_dir / "catalogs" / f"{provider.lower()}.json"
+        path = out_dir / "catalogs" / f"{_safe_name(service_provider)}.json"
         digest = _write_exclusive(path, evidence)
-        catalogs[provider] = {
+        catalogs[service_provider] = {
+            "api_provider": api_provider,
             "file": str(path.relative_to(out_dir)),
             "sha256": digest,
             "model_ids": ids,
@@ -75,19 +86,21 @@ def run_preflight(*, freeze_path: Path, out_dir: Path, smoke: bool = False,
     for sid in eligible:
         service = services[sid]
         provider = service["provider"]
+        api_provider = _api_provider_name(provider)
         cfg = freeze["shadow_api"][sid]
         model_id = cfg["model_id"]
         listed = model_id in catalogs[provider]["model_ids"]
-        exact = api.fetch_exact_model(provider, model_id, timeout_s=timeout_s)
+        exact = api.fetch_exact_model(api_provider, model_id, timeout_s=timeout_s)
         returned_id = None
         exact_ok = listed
         metadata_file = None
         metadata_sha = None
         if exact is not None:
-            returned_id = api.returned_metadata_model_id(provider, exact.data)
+            returned_id = api.returned_metadata_model_id(api_provider, exact.data)
             exact_ok = returned_id == model_id
             record = {
-                "provider": provider,
+                "service_provider_label": provider,
+                "api_provider": api_provider,
                 "endpoint": exact.endpoint,
                 "http_status": exact.status,
                 "started_at_utc": exact.started_at_utc,
@@ -96,12 +109,13 @@ def run_preflight(*, freeze_path: Path, out_dir: Path, smoke: bool = False,
                 "response": exact.data,
                 "credential_value_recorded": False,
             }
-            path = out_dir / "models" / provider.lower() / f"{model_id.replace('/', '_')}.json"
+            path = out_dir / "models" / _safe_name(provider) / f"{model_id.replace('/', '_')}.json"
             metadata_sha = _write_exclusive(path, record)
             metadata_file = str(path.relative_to(out_dir))
         check = {
             "service_lineage_id": sid,
             "provider": provider,
+            "api_provider": api_provider,
             "model_id": model_id,
             "listed_in_catalog_response": listed,
             "exact_metadata_verified": exact_ok,
@@ -127,12 +141,9 @@ def run_preflight(*, freeze_path: Path, out_dir: Path, smoke: bool = False,
             except AdapterFailure as exc:
                 errors.append(f"{provider} shadow smoke failed for {model_id}: {exc.kind}")
                 smoke_checks.append({
-                    "service_lineage_id": sid,
-                    "provider": provider,
-                    "model_id": model_id,
-                    "pass": False,
-                    "failure_kind": exc.kind,
-                    "http_status": exc.http_status,
+                    "service_lineage_id": sid, "provider": provider,
+                    "model_id": model_id, "pass": False,
+                    "failure_kind": exc.kind, "http_status": exc.http_status,
                 })
             else:
                 smoke_record = {
@@ -153,15 +164,12 @@ def run_preflight(*, freeze_path: Path, out_dir: Path, smoke: bool = False,
                     "registered_mibo_prompt_used": False,
                     "pass": 200 <= result.http_status < 300,
                 }
-                path = out_dir / "smoke" / provider.lower() / f"{model_id.replace('/', '_')}.json"
+                path = out_dir / "smoke" / _safe_name(provider) / f"{model_id.replace('/', '_')}.json"
                 digest = _write_exclusive(path, smoke_record)
                 smoke_checks.append({
-                    "service_lineage_id": sid,
-                    "provider": provider,
-                    "model_id": model_id,
-                    "pass": smoke_record["pass"],
-                    "file": str(path.relative_to(out_dir)),
-                    "sha256": digest,
+                    "service_lineage_id": sid, "provider": provider,
+                    "model_id": model_id, "pass": smoke_record["pass"],
+                    "file": str(path.relative_to(out_dir)), "sha256": digest,
                 })
 
     report = {
