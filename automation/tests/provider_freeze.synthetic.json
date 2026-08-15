@@ -10,6 +10,10 @@
       "live_model_id": null,
       "frozen_model_id": null,
       "comparability_class": null,
+      "provider_evidence": null,
+      "verified_at_utc": null,
+      "terms_review_date": null,
+      "terms_review_source": null,
       "request_profile": {
         "adapter": "openai_responses",
         "endpoint": "https://api.openai.com/v1/responses",
@@ -25,6 +29,10 @@
       "live_model_id": "synthetic-live-claude",
       "frozen_model_id": "synthetic-frozen-claude",
       "comparability_class": "A",
+      "provider_evidence": "synthetic-anthropic-model-evidence",
+      "verified_at_utc": "2026-08-31T00:00:00Z",
+      "terms_review_date": "2026-08-31",
+      "terms_review_source": "synthetic-anthropic-api-terms",
       "request_profile": {
         "adapter": "anthropic_messages",
         "endpoint": "https://api.anthropic.com/v1/messages",
@@ -40,6 +48,10 @@
       "live_model_id": "synthetic-live-gemini",
       "frozen_model_id": "synthetic-frozen-gemini",
       "comparability_class": "B",
+      "provider_evidence": "synthetic-gemini-model-evidence",
+      "verified_at_utc": "2026-08-31T00:00:00Z",
+      "terms_review_date": "2026-08-31",
+      "terms_review_source": "synthetic-google-api-terms",
       "request_profile": {
         "adapter": "gemini_generate_content",
         "endpoint_base": "https://generativelanguage.googleapis.com/v1beta/models",
@@ -54,6 +66,10 @@
       "live_model_id": null,
       "frozen_model_id": null,
       "comparability_class": "C",
+      "provider_evidence": null,
+      "verified_at_utc": null,
+      "terms_review_date": null,
+      "terms_review_source": null,
       "request_profile": null
     }
   }
