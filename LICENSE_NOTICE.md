@@ -1,5 +1,7 @@
-# License notice — release candidate
+# License Notice
 
-No public reuse license is granted by this release-candidate repository until institutional and legal review is complete.
+Unless a component states otherwise, the textual materials in the frozen MIBO Core Protocol Package v1.0 are released under the Creative Commons Attribution 4.0 International License (CC BY 4.0).
 
-The intended final policy is an open documentation license for protocols and templates, and a permissive software license for executable code. Final licensing must remain compatible with institutional policy, third-party platform terms, and rights in captured service outputs.
+Software components in this GitHub repository may carry their own compatible license notices. Those component notices control for the relevant software files.
+
+Third-party service outputs, provider materials, trademarks, and other third-party content are not relicensed by this notice. Their applicable rights and terms remain with the relevant rightsholders.
