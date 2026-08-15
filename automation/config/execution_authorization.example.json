@@ -1,0 +1,15 @@
+{
+  "schema_version": "1.0",
+  "protocol_doi": "10.5281/zenodo.21936410",
+  "wave_id": "MIBO-W01",
+  "site_id": "JP01",
+  "authorized": false,
+  "authorized_at_utc": null,
+  "operations_lead": null,
+  "terms_review_complete": false,
+  "institutional_process_checked": false,
+  "dry_run_complete": false,
+  "manifest_sha256": null,
+  "provider_freeze_sha256": null,
+  "note": "Private execution record. Populate prospectively after the Pre-Wave gate is closed; do not commit the completed record if it contains non-public operational details."
+}

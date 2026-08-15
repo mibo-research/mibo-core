@@ -9,25 +9,52 @@
       "status": "pending",
       "live_model_id": null,
       "frozen_model_id": null,
-      "comparability_class": null
+      "comparability_class": null,
+      "request_profile": {
+        "adapter": "openai_responses",
+        "endpoint": "https://api.openai.com/v1/responses",
+        "api_key_env": "OPENAI_API_KEY",
+        "max_output_tokens": 512,
+        "temperature": null,
+        "top_p": null,
+        "reasoning": null
+      }
     },
     "MIBO-SL-002": {
       "status": "eligible",
       "live_model_id": "synthetic-live-claude",
       "frozen_model_id": "synthetic-frozen-claude",
-      "comparability_class": "A"
+      "comparability_class": "A",
+      "request_profile": {
+        "adapter": "anthropic_messages",
+        "endpoint": "https://api.anthropic.com/v1/messages",
+        "api_key_env": "ANTHROPIC_API_KEY",
+        "anthropic_version": "2023-06-01",
+        "max_output_tokens": 512,
+        "temperature": null,
+        "top_p": null
+      }
     },
     "MIBO-SL-003": {
       "status": "eligible",
       "live_model_id": "synthetic-live-gemini",
       "frozen_model_id": "synthetic-frozen-gemini",
-      "comparability_class": "B"
+      "comparability_class": "B",
+      "request_profile": {
+        "adapter": "gemini_generate_content",
+        "endpoint_base": "https://generativelanguage.googleapis.com/v1beta/models",
+        "api_key_env": "GEMINI_API_KEY",
+        "max_output_tokens": 512,
+        "temperature": null,
+        "top_p": null
+      }
     },
     "MIBO-SL-004": {
       "status": "not_admissible_v1",
       "live_model_id": null,
       "frozen_model_id": null,
-      "comparability_class": "C"
+      "comparability_class": "C",
+      "request_profile": null
     }
   }
 }
