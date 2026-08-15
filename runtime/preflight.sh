@@ -39,4 +39,32 @@ python3 automation/prewave_bundle.py \
 
 printf '\nAPI readiness evidence created at: %s\n' "${API_EVIDENCE_DIR}"
 printf 'Pre-Wave bundle created at: %s\n' "${BUNDLE_DIR}"
-printf 'Collection is still NOT authorized. Complete and sign the Pre-Wave gate and private authorization record before enabling provider execution.\n'
+
+# API Shadow is exploratory auxiliary infrastructure and must never block Core
+# collection merely because it is not configured. When a separate finalized
+# shadow freeze is supplied, however, its own preflight/bundle is fail-closed.
+if [[ -n "${MIBO_API_SHADOW_FREEZE:-}" ]]; then
+  SHADOW_EVIDENCE_DIR="${MIBO_API_SHADOW_EVIDENCE_DIR:-/srv/mibo-private/${WAVE}-${SITE}-api-shadow-preflight}"
+  SHADOW_BUNDLE_DIR="${MIBO_API_SHADOW_BUNDLE_DIR:-/srv/mibo-private/${WAVE}-${SITE}-api-shadow}"
+  SHADOW_ARGS=(
+    --freeze "${MIBO_API_SHADOW_FREEZE}"
+    --out-dir "${SHADOW_EVIDENCE_DIR}"
+  )
+  if [[ "${MIBO_API_SHADOW_SMOKE_TEST:-DISABLED}" == "ENABLED_AFTER_TERMS_REVIEW" ]]; then
+    SHADOW_ARGS+=(--smoke)
+  fi
+  python3 automation/shadow_preflight.py "${SHADOW_ARGS[@]}"
+  python3 automation/shadow_bundle.py \
+    --wave "${WAVE}" \
+    --site "${SITE}" \
+    --freeze "${MIBO_API_SHADOW_FREEZE}" \
+    --preflight-report "${SHADOW_EVIDENCE_DIR}/API_SHADOW_PREFLIGHT_REPORT.json" \
+    --out-dir "${SHADOW_BUNDLE_DIR}"
+  printf 'API Shadow readiness evidence created at: %s\n' "${SHADOW_EVIDENCE_DIR}"
+  printf 'API Shadow bundle created at: %s\n' "${SHADOW_BUNDLE_DIR}"
+  printf 'API Shadow remains NOT authorized until its separate human authorization record is completed.\n'
+else
+  printf 'API Shadow not configured; Core Pre-Wave readiness is unaffected.\n'
+fi
+
+printf 'Collection is still NOT authorized. Complete and sign the applicable private authorization record(s) before enabling provider execution.\n'
