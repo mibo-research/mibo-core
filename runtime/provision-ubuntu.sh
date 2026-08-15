@@ -17,7 +17,7 @@ DATA_ROOT="${MIBO_DATA_ROOT:-/srv/mibo-data}"
 PRIVATE_ROOT="${MIBO_PRIVATE_ROOT:-/srv/mibo-private}"
 ETC_ROOT="${MIBO_ETC_ROOT:-/etc/mibo}"
 
-for command in python3 git systemctl install cp find; do
+for command in python3 git systemctl systemd-analyze install cp find getent; do
   command -v "${command}" >/dev/null || { echo "Missing required command: ${command}" >&2; exit 1; }
 done
 
@@ -26,6 +26,12 @@ import sys
 if sys.version_info < (3, 12):
     raise SystemExit(f"Python 3.12+ required; found {sys.version.split()[0]}")
 PY
+
+SOURCE_COMMIT="$(git -C "${REPO_ROOT}" rev-parse HEAD)"
+if [[ -n "$(git -C "${REPO_ROOT}" status --porcelain)" ]]; then
+  echo "Refusing to provision from a dirty Git working tree." >&2
+  exit 1
+fi
 
 if ! id "${MIBO_USER}" >/dev/null 2>&1; then
   if ! getent group "${MIBO_GROUP}" >/dev/null 2>&1; then
@@ -47,6 +53,32 @@ cp -a \
   "${REPO_ROOT}/PRE_WAVE1_EXECUTION_GATE.md" \
   "${INSTALL_ROOT}/"
 find "${INSTALL_ROOT}" -type d -name '__pycache__' -prune -exec rm -rf -- {} +
+
+SOURCE_COMMIT="${SOURCE_COMMIT}" INSTALL_ROOT="${INSTALL_ROOT}" python3 - <<'PY'
+from datetime import datetime, timezone
+import hashlib
+import json
+import os
+from pathlib import Path
+
+root = Path(os.environ["INSTALL_ROOT"])
+provenance = {
+    "schema_version": "1.0",
+    "source_commit_sha": os.environ["SOURCE_COMMIT"],
+    "installed_at_utc": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+    "source_worktree_clean": True,
+    "collection_enabled_by_provisioner": False,
+}
+(root / "INSTALL_PROVENANCE.json").write_text(json.dumps(provenance, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+entries = []
+for path in sorted(root.rglob("*")):
+    if not path.is_file() or path.name == "INSTALL_SHA256SUMS.txt":
+        continue
+    digest = hashlib.sha256(path.read_bytes()).hexdigest()
+    entries.append(f"{digest}  {path.relative_to(root).as_posix()}")
+(root / "INSTALL_SHA256SUMS.txt").write_text("\n".join(entries) + "\n", encoding="utf-8")
+PY
+
 chown -R root:"${MIBO_GROUP}" "${INSTALL_ROOT}"
 find "${INSTALL_ROOT}" -type d -exec chmod 0755 {} +
 find "${INSTALL_ROOT}" -type f -exec chmod 0644 {} +
@@ -75,10 +107,11 @@ systemd-analyze verify /etc/systemd/system/mibo-paired.service >/dev/null
 
 echo
 echo "MIBO Japan-site runtime provisioned, but collection remains DISABLED."
-echo "Install root: ${INSTALL_ROOT}"
-echo "Data root:    ${DATA_ROOT}"
-echo "Private root: ${PRIVATE_ROOT}"
-echo "Config root:  ${ETC_ROOT}"
+echo "Source commit: ${SOURCE_COMMIT}"
+echo "Install root:  ${INSTALL_ROOT}"
+echo "Data root:     ${DATA_ROOT}"
+echo "Private root:  ${PRIVATE_ROOT}"
+echo "Config root:   ${ETC_ROOT}"
 echo
-echo "Next: edit private configuration under ${PRIVATE_ROOT}/${ETC_ROOT}, run runtime/preflight.sh,"
-echo "close the Pre-Wave-1 Execution Gate, and only then enable/start the paired service."
+echo "Next: populate private configuration, run runtime/preflight.sh, close the Pre-Wave-1 Execution Gate,"
+echo "and only then enable/start the paired service."
