@@ -14,6 +14,7 @@ import sys
 
 import manifest_integrity
 import mibo_runner as core
+import operator_roster
 from raw_archive import archive_failure, canonical_json_bytes, wave_root, write_deviation
 from retry_policy import RETRY_ELIGIBLE, decide_retry
 import ui_capture
@@ -97,7 +98,8 @@ def retry_tasks(data_root: Path, site_id: str, wave_id: str) -> list[dict]:
 
 
 def select_next_row(rows: list[dict], *, data_root: Path, now: datetime | None = None,
-                    service_lineage_id: str | None = None, window_id: str | None = None) -> dict | None:
+                    service_lineage_id: str | None = None, window_id: str | None = None,
+                    allowed_lineages: set[str] | None = None) -> dict | None:
     current = (now or utc_now()).astimezone(timezone.utc)
     if not rows:
         return None
@@ -106,14 +108,21 @@ def select_next_row(rows: list[dict], *, data_root: Path, now: datetime | None =
     done = processed_attempt_ids(data_root, site_id, wave_id)
     paused = paused_lineages(data_root, site_id, wave_id, current)
 
+    def admissible(row: dict) -> bool:
+        if row["attempt_id"] in done or row["service_lineage_id"] in paused:
+            return False
+        if allowed_lineages is not None and row["service_lineage_id"] not in allowed_lineages:
+            return False
+        if service_lineage_id and row["service_lineage_id"] != service_lineage_id:
+            return False
+        if window_id and row["window_id"] != window_id:
+            return False
+        return True
+
     due_retries: list[tuple[datetime, dict]] = []
     for task in retry_tasks(data_root, site_id, wave_id):
         row = task["row"]
-        if row["attempt_id"] in done or row["service_lineage_id"] in paused:
-            continue
-        if service_lineage_id and row["service_lineage_id"] != service_lineage_id:
-            continue
-        if window_id and row["window_id"] != window_id:
+        if not admissible(row):
             continue
         due = ui_capture.parse_utc(task["due_at_utc"])
         if due <= current and ui_capture.within_registered_window(row, current):
@@ -123,13 +132,7 @@ def select_next_row(rows: list[dict], *, data_root: Path, now: datetime | None =
         return due_retries[0][1]
 
     for row in sorted(rows, key=lambda r: int(r["execution_order"])):
-        if row["attempt_id"] in done or row["service_lineage_id"] in paused:
-            continue
-        if service_lineage_id and row["service_lineage_id"] != service_lineage_id:
-            continue
-        if window_id and row["window_id"] != window_id:
-            continue
-        if ui_capture.within_registered_window(row, current):
+        if admissible(row) and ui_capture.within_registered_window(row, current):
             return row
     return None
 
@@ -214,8 +217,8 @@ def schedule_outage_recovery(*, data_root: Path, row: dict, failed_at: datetime,
     )
 
 
-def _read_multiline_capture() -> str:
-    print(f"Paste the provider output below. Finish with a line containing exactly: {CAPTURE_END}")
+def _read_multiline_capture(label: str) -> str:
+    print(f"Paste {label} below. Finish with a line containing exactly: {CAPTURE_END}")
     lines: list[str] = []
     for line in sys.stdin:
         value = line.rstrip("\n")
@@ -225,7 +228,14 @@ def _read_multiline_capture() -> str:
     return "\n".join(lines)
 
 
-def run_one(*, row: dict, configuration: Path, data_root: Path, operator_id: str) -> None:
+def run_one(*, row: dict, configuration: Path, roster_path: Path,
+            data_root: Path, operator_id: str) -> None:
+    roster, _ = operator_roster.load_roster(
+        roster_path, wave_id=row["wave_id"], site_id=row["site_id"]
+    )
+    operator_roster.assert_operator_assigned(
+        roster, service_lineage_id=row["service_lineage_id"], operator_id=operator_id
+    )
     prompt = _prompt(row)
     service = _service(row)
     start, end = ui_capture.window_bounds(row["wave_id"], row["window_id"])
@@ -249,16 +259,35 @@ def run_one(*, row: dict, configuration: Path, data_root: Path, operator_id: str
     if result == "CAPTURE":
         displayed_mode = input("Displayed service mode (optional, Enter to skip): ").strip() or None
         displayed_model = input("Displayed model label (optional, Enter to skip): ").strip() or None
-        output = _read_multiline_capture()
+        output = _read_multiline_capture("the full rendered provider response")
+        source_answer = input("Were citations/source cards/links displayed? [YES/NO]: ").strip().upper()
+        if source_answer not in {"YES", "NO"}:
+            raise SystemExit("source-display confirmation must be YES or NO; nothing captured")
+        sources_displayed = source_answer == "YES"
+        sources_text = None
+        if sources_displayed:
+            sources_text = _read_multiline_capture(
+                "all displayed citation/source-card/link information available through the ordinary UI"
+            )
+            if not sources_text.strip():
+                raise SystemExit("sources were marked displayed but no source information was captured")
         captured_at = utc_text()
         meta = ui_capture.capture_ui_observation(
             data_root=data_root, row=row, prompt_text=prompt, output_text=output,
-            ui_configuration_path=configuration, operator_id=operator_id,
-            operator_confirmed_new_session=True, submitted_at_utc=submitted_at,
-            captured_at_utc=captured_at, displayed_service_mode=displayed_mode,
-            displayed_model_label=displayed_model, now=utc_now(),
+            ui_configuration_path=configuration, operator_roster_path=roster_path,
+            operator_id=operator_id, operator_confirmed_new_session=True,
+            submitted_at_utc=submitted_at, captured_at_utc=captured_at,
+            sources_displayed=sources_displayed, sources_text=sources_text,
+            displayed_service_mode=displayed_mode, displayed_model_label=displayed_model,
+            now=utc_now(),
         )
-        print(json.dumps({"status": "CAPTURED", "attempt_id": row["attempt_id"], "output_sha256": meta["output_sha256"], "metadata_sha256": meta["metadata_file_sha256"]}, indent=2))
+        print(json.dumps({
+            "status": "CAPTURED",
+            "attempt_id": row["attempt_id"],
+            "output_sha256": meta["output_sha256"],
+            "sources_capture_state": meta["sources_capture_state"],
+            "metadata_sha256": meta["metadata_file_sha256"],
+        }, indent=2))
         return
 
     if result == "TECHFAIL":
@@ -280,6 +309,8 @@ def run_one(*, row: dict, configuration: Path, data_root: Path, operator_id: str
     if result == "OUTAGE":
         failed_at = utc_now()
         lead = input("Operations Lead name/id: ").strip()
+        if lead != roster.get("operations_lead"):
+            raise SystemExit("Operations Lead does not match the frozen operator roster")
         recovery_text = input("Scheduled recovery block not-before UTC (ISO 8601): ").strip()
         if not recovery_text:
             raise SystemExit("a documented recovery-block time is required; nothing written")
@@ -315,7 +346,7 @@ def load_manifest(path: Path) -> list[dict]:
     return rows
 
 
-def status(rows: list[dict], data_root: Path) -> dict:
+def status(rows: list[dict], data_root: Path, roster: dict | None = None) -> dict:
     site_id = rows[0]["site_id"]
     wave_id = rows[0]["wave_id"]
     done = processed_attempt_ids(data_root, site_id, wave_id)
@@ -326,7 +357,11 @@ def status(rows: list[dict], data_root: Path) -> dict:
         bucket["intended"] += 1
         if row["attempt_id"] in done:
             bucket["processed_initial_attempts"] += 1
-    return {"wave_id": wave_id, "site_id": site_id, "by_lineage_window": out}
+    report: dict = {"wave_id": wave_id, "site_id": site_id, "by_lineage_window": out}
+    if roster is not None:
+        report["service_operators"] = roster.get("service_operators")
+        report["operations_lead"] = roster.get("operations_lead")
+    return report
 
 
 def main() -> int:
@@ -334,6 +369,7 @@ def main() -> int:
     p.add_argument("command", choices=("status", "next"))
     p.add_argument("--manifest", required=True, type=Path)
     p.add_argument("--configuration", type=Path)
+    p.add_argument("--roster", type=Path)
     p.add_argument("--data-root", required=True, type=Path)
     p.add_argument("--operator")
     p.add_argument("--lineage")
@@ -341,18 +377,32 @@ def main() -> int:
     args = p.parse_args()
 
     rows = load_manifest(args.manifest)
+    roster = None
+    if args.roster:
+        roster, _ = operator_roster.load_roster(
+            args.roster, wave_id=rows[0]["wave_id"], site_id=rows[0]["site_id"]
+        )
     if args.command == "status":
-        print(json.dumps(status(rows, args.data_root), indent=2))
+        print(json.dumps(status(rows, args.data_root, roster), indent=2))
         return 0
-    if args.configuration is None or not args.operator:
-        raise SystemExit("next requires --configuration and --operator")
+    if args.configuration is None or args.roster is None or not args.operator:
+        raise SystemExit("next requires --configuration, --roster, and --operator")
+    assigned = set(operator_roster.assigned_lineages(roster, args.operator))
+    if not assigned:
+        raise SystemExit(f"operator {args.operator!r} has no assigned service lineage in the frozen roster")
+    if args.lineage and args.lineage not in assigned:
+        raise SystemExit(f"operator {args.operator!r} is not assigned to {args.lineage}")
     row = select_next_row(
-        rows, data_root=args.data_root, service_lineage_id=args.lineage, window_id=args.window
+        rows, data_root=args.data_root, service_lineage_id=args.lineage,
+        window_id=args.window, allowed_lineages=assigned,
     )
     if row is None:
-        print("No eligible pending Ecological Live task is due in the registered window.")
+        print("No eligible pending Ecological Live task is due for this operator in the registered window.")
         return 0
-    run_one(row=row, configuration=args.configuration, data_root=args.data_root, operator_id=args.operator)
+    run_one(
+        row=row, configuration=args.configuration, roster_path=args.roster,
+        data_root=args.data_root, operator_id=args.operator,
+    )
     return 0
 
 
