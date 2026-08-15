@@ -15,7 +15,7 @@ The scientific protocol is frozen at DOI `10.5281/zenodo.21936410`. The automati
 - registered randomization seed;
 - W01 calibration Window A / Window B manifest generation;
 - ordinary-wave manifest generation;
-- paired API block manifest generation after eligible lineages are frozen;
+- paired API block manifest generation only from a finalized provider-freeze record;
 - Attempt ID generation;
 - structural manifest validation;
 - CI tests; and
@@ -37,6 +37,8 @@ Pre-wave readiness must begin no later than 24 hours before field start.
 ## Commands
 
 ```bash
+python automation/mibo_runner.py verify-config
+
 python automation/mibo_runner.py show-wave --wave MIBO-W01
 
 python automation/mibo_runner.py generate-ui \
@@ -49,6 +51,7 @@ python automation/mibo_runner.py validate /tmp/MIBO-W01-JP01-LUI.csv
 python automation/mibo_runner.py generate-paired \
   --wave MIBO-W01 \
   --site JP01 \
+  --freeze /secure/path/provider_freeze.W01.json \
   --lineage MIBO-SL-002 \
   --lineage MIBO-SL-003 \
   --out /tmp/MIBO-W01-JP01-PAIRED.csv
