@@ -43,6 +43,7 @@ def archive_success(*, data_root: Path, row: dict, request_payload: dict, respon
         "query_form_id": row["query_form_id"],
         "replication": row["replication"],
         "attempt": row["attempt"],
+        "retry_of_attempt_id": row.get("retry_of_attempt_id"),
         "configuration_freeze_sha256": row.get("configuration_freeze_sha256", ""),
         "model_id_requested": row.get("model_id", ""),
         "model_id_returned": returned_model,
@@ -60,6 +61,7 @@ def archive_success(*, data_root: Path, row: dict, request_payload: dict, respon
     metadata = {
         "observation_id": observation_id,
         "attempt_id": row["attempt_id"],
+        "retry_of_attempt_id": row.get("retry_of_attempt_id"),
         "raw_file": str(raw_path.relative_to(root)),
         "raw_file_sha256": raw_hash,
         "captured_at_utc": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
@@ -74,6 +76,7 @@ def archive_failure(*, data_root: Path, row: dict, failure_kind: str, message: s
     root = wave_root(data_root, row["site_id"], row["wave_id"])
     failure = {
         "attempt_id": row["attempt_id"],
+        "retry_of_attempt_id": row.get("retry_of_attempt_id"),
         "protocol_doi": row["protocol_doi"],
         "wave_id": row["wave_id"],
         "site_id": row["site_id"],
@@ -93,6 +96,23 @@ def archive_failure(*, data_root: Path, row: dict, failure_kind: str, message: s
     path = root / "failures" / f"{row['attempt_id']}.json"
     digest = _write_exclusive(path, canonical_json_bytes(failure))
     return {"attempt_id": row["attempt_id"], "failure_file": str(path.relative_to(root)), "failure_file_sha256": digest}
+
+
+def archive_retry_link(*, data_root: Path, original_attempt_id: str, retry_attempt_id: str, site_id: str, wave_id: str, due_at_utc: str, failure_kind: str) -> dict:
+    root = wave_root(data_root, site_id, wave_id)
+    record = {
+        "original_attempt_id": original_attempt_id,
+        "retry_attempt_id": retry_attempt_id,
+        "due_at_utc": due_at_utc,
+        "failure_kind": failure_kind,
+        "link_type": "technical_retry",
+    }
+    path = root / "metadata" / f"retry-link-{retry_attempt_id}.json"
+    digest = _write_exclusive(path, canonical_json_bytes(record))
+    return {
+        "retry_link_file": str(path.relative_to(root)),
+        "retry_link_sha256": digest,
+    }
 
 
 def write_deviation(*, data_root: Path, site_id: str, wave_id: str, deviation_id: str, record: dict) -> str:
