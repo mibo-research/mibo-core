@@ -1,0 +1,14 @@
+{
+  "schema_version": "1.0",
+  "protocol_doi": "10.5281/zenodo.21936410",
+  "wave_id": "MIBO-W01",
+  "site_id": "JP01",
+  "frozen_at_utc": "2026-08-31T00:00:00Z",
+  "terms_review_record": "synthetic",
+  "ecological_live": {
+    "MIBO-SL-001": {"status":"ready_human_operated","interaction_mode":"human_only","terms_review_complete":true,"new_session_required":true,"account_tier":"synthetic","mode":"synthetic","search_tools_state":"synthetic","memory_personalization_state":"off","locale":"ja-JP"},
+    "MIBO-SL-002": {"status":"ready_human_operated","interaction_mode":"human_only","terms_review_complete":true,"new_session_required":true,"account_tier":"synthetic","mode":"synthetic","search_tools_state":"synthetic","memory_personalization_state":"off","locale":"ja-JP"},
+    "MIBO-SL-003": {"status":"ready_human_operated","interaction_mode":"human_only","terms_review_complete":true,"new_session_required":true,"account_tier":"synthetic","mode":"synthetic","search_tools_state":"synthetic","memory_personalization_state":"off","locale":"ja-JP"},
+    "MIBO-SL-004": {"status":"ready_human_operated","interaction_mode":"human_only","terms_review_complete":true,"new_session_required":true,"account_tier":"synthetic","mode":"synthetic","search_tools_state":"synthetic","memory_personalization_state":"off","locale":"ja-JP"}
+  }
+}

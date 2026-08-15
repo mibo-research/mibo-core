@@ -1,0 +1,54 @@
+{
+  "schema_version": "1.0",
+  "protocol_doi": "10.5281/zenodo.21936410",
+  "wave_id": "MIBO-W01",
+  "site_id": "JP01",
+  "frozen_at_utc": null,
+  "terms_review_record": "automation/compliance/UI_TERMS_REVIEW_2026-08-15.md",
+  "ecological_live": {
+    "MIBO-SL-001": {
+      "status": "pending",
+      "interaction_mode": "human_only",
+      "terms_review_complete": false,
+      "new_session_required": true,
+      "account_tier": null,
+      "mode": null,
+      "search_tools_state": null,
+      "memory_personalization_state": null,
+      "locale": "ja-JP"
+    },
+    "MIBO-SL-002": {
+      "status": "pending",
+      "interaction_mode": "human_only",
+      "terms_review_complete": false,
+      "new_session_required": true,
+      "account_tier": null,
+      "mode": null,
+      "search_tools_state": null,
+      "memory_personalization_state": null,
+      "locale": "ja-JP"
+    },
+    "MIBO-SL-003": {
+      "status": "pending",
+      "interaction_mode": "human_only",
+      "terms_review_complete": false,
+      "new_session_required": true,
+      "account_tier": null,
+      "mode": null,
+      "search_tools_state": null,
+      "memory_personalization_state": null,
+      "locale": "ja-JP"
+    },
+    "MIBO-SL-004": {
+      "status": "pending",
+      "interaction_mode": "human_only",
+      "terms_review_complete": false,
+      "new_session_required": true,
+      "account_tier": null,
+      "mode": null,
+      "search_tools_state": null,
+      "memory_personalization_state": null,
+      "locale": "ja-JP"
+    }
+  }
+}
