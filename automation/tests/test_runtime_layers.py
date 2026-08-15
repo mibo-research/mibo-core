@@ -12,7 +12,10 @@ sys.path.insert(0, str(HERE))
 import provider_adapters as pa
 import raw_archive as ra
 import retry_policy as rp
+import runtime_health as rh
 import wave_waiter as ww
+
+PROVIDER_FREEZE = Path(__file__).with_name("provider_freeze.synthetic.json")
 
 
 class RetryPolicyTests(unittest.TestCase):
@@ -34,6 +37,14 @@ class RetryPolicyTests(unittest.TestCase):
         t = datetime(2026, 9, 1, 1, 0, tzinfo=timezone.utc)
         d = rp.decide_retry(attempt=1, failure_kind="rate_limit", failed_at=t, provider_retry_after_seconds=1200)
         self.assertEqual(d.delay_seconds, 1200)
+
+
+class RuntimeHealthTests(unittest.TestCase):
+    def test_credentials_are_required_only_for_frozen_eligible_providers(self):
+        self.assertEqual(
+            rh.eligible_credential_envs(PROVIDER_FREEZE),
+            ["ANTHROPIC_API_KEY", "GEMINI_API_KEY"],
+        )
 
 
 class WaveWaiterTests(unittest.TestCase):
