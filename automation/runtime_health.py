@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import argparse
 from datetime import datetime, timezone
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -26,13 +27,72 @@ def _run(args: list[str]) -> tuple[int, str]:
         return 127, ""
 
 
+def _sha256(path: Path) -> str:
+    h = hashlib.sha256()
+    with path.open("rb") as fh:
+        for chunk in iter(lambda: fh.read(1024 * 1024), b""):
+            h.update(chunk)
+    return h.hexdigest()
+
+
+def installed_snapshot_state(repo_root: Path) -> dict[str, Any] | None:
+    provenance_path = repo_root / "INSTALL_PROVENANCE.json"
+    sums_path = repo_root / "INSTALL_SHA256SUMS.txt"
+    if not provenance_path.is_file() or not sums_path.is_file():
+        return None
+    try:
+        provenance = json.loads(provenance_path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError:
+        return {
+            "commit_sha": None, "commit_resolved": False,
+            "working_tree_clean": False, "provenance_mode": "installed_snapshot",
+            "snapshot_integrity_pass": False, "snapshot_errors": ["invalid INSTALL_PROVENANCE.json"],
+        }
+    errors: list[str] = []
+    for line in sums_path.read_text(encoding="utf-8").splitlines():
+        if not line.strip():
+            continue
+        try:
+            expected, rel = line.split("  ", 1)
+        except ValueError:
+            errors.append(f"malformed checksum line: {line}")
+            continue
+        path = repo_root / rel
+        if not path.is_file():
+            errors.append(f"missing installed file: {rel}")
+        elif _sha256(path) != expected:
+            errors.append(f"installed file hash mismatch: {rel}")
+    commit = provenance.get("source_commit_sha")
+    return {
+        "commit_sha": commit,
+        "commit_resolved": isinstance(commit, str) and len(commit) == 40,
+        "working_tree_clean": not errors,
+        "provenance_mode": "installed_snapshot",
+        "snapshot_integrity_pass": not errors,
+        "snapshot_errors": errors,
+        "installed_at_utc": provenance.get("installed_at_utc"),
+        "collection_enabled_by_provisioner": provenance.get("collection_enabled_by_provisioner"),
+    }
+
+
 def git_state(repo_root: Path) -> dict[str, Any]:
     code, sha = _run(["git", "-C", str(repo_root), "rev-parse", "HEAD"])
     status_code, status = _run(["git", "-C", str(repo_root), "status", "--porcelain"])
+    if code == 0:
+        return {
+            "commit_sha": sha,
+            "commit_resolved": True,
+            "working_tree_clean": status_code == 0 and status == "",
+            "provenance_mode": "git_checkout",
+        }
+    snapshot = installed_snapshot_state(repo_root)
+    if snapshot is not None:
+        return snapshot
     return {
-        "commit_sha": sha if code == 0 else None,
-        "commit_resolved": code == 0,
-        "working_tree_clean": status_code == 0 and status == "",
+        "commit_sha": None,
+        "commit_resolved": False,
+        "working_tree_clean": False,
+        "provenance_mode": "unresolved",
     }
 
 
@@ -73,7 +133,7 @@ def build_report(*, repo_root: Path, data_root: Path, credential_envs: list[str]
         "python_version": sys.version.split()[0],
         "repo_root": str(repo_root.resolve()),
         "data_root": str(data_root.resolve()),
-        "git": git,
+        "provenance": git,
         "clock": ntp,
         "disk": {
             "free_bytes": usage.free,
