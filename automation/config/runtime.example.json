@@ -1,0 +1,11 @@
+{
+  "schema_version": "1.0",
+  "note": "Public example only. Credentials are environment variables and never belong in this file.",
+  "provider_api_key_envs": {
+    "OpenAI": "OPENAI_API_KEY",
+    "Anthropic": "ANTHROPIC_API_KEY",
+    "Google": "GEMINI_API_KEY"
+  },
+  "data_root_example": "/srv/mibo-data",
+  "provider_execution_sentinel": "MIBO_PROVIDER_EXECUTION=ENABLED_AFTER_PREWAVE_GATE"
+}
