@@ -1,0 +1,21 @@
+[Unit]
+Description=MIBO API Shadow Archive wave executor
+After=network-online.target time-sync.target
+Wants=network-online.target time-sync.target
+
+[Service]
+Type=oneshot
+User=mibo
+Group=mibo
+WorkingDirectory=/opt/mibo-core
+EnvironmentFile=/etc/mibo/mibo-shadow.env
+ExecStart=/usr/bin/python3 /opt/mibo-core/automation/shadow_waiter.py --wave ${MIBO_WAVE} --manifest ${MIBO_API_SHADOW_MANIFEST} --freeze ${MIBO_API_SHADOW_FREEZE} --authorization ${MIBO_API_SHADOW_AUTHORIZATION} --data-root ${MIBO_DATA_ROOT}
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/srv/mibo-data /srv/mibo-private
+UMask=0077
+
+[Install]
+WantedBy=multi-user.target
