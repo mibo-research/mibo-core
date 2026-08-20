@@ -21,6 +21,10 @@ references:
         orcid: "https://orcid.org/0009-0009-3853-8029"
         affiliation: "Okayama University; Keio Research Institute at SFC, Keio University"
     doi: "10.5281/zenodo.22025100"
+    identifiers:
+      - type: doi
+        value: "10.2139/ssrn.7319218"
+        description: "SSRN distribution-copy DOI for the same preprint."
     date-released: "2026-08-20"
     year: 2026
     version: "1.0"
