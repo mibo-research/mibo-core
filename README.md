@@ -10,6 +10,14 @@ MIBO Core is the common sentinel-panel program of MIBO for longitudinal observat
 
 MIBO is composed of **MIBO Core, MIBO Satellite, and MIBO Network**.
 
+## Founding and methods paper
+
+The founding and methods preprint provides the scholarly account of the MIBO design, developmental pilot lessons, and international mirror-replication architecture.
+
+**Preprint DOI:** https://doi.org/10.5281/zenodo.22025100
+
+The paper is a companion scholarly output. It does **not** replace or amend the frozen MIBO Core Protocol Package v1.0, and its publication is not an additional MIBO-W01 start condition.
+
 ## First-year v1.0 design
 
 - four persistent public service lineages;
@@ -60,4 +68,10 @@ Files whose names end in `v1.0-rc3` are retained as historical pre-release artif
 
 ## Citation
 
+For the frozen protocol package:
+
 Sasano, K. (2026). *MIBO Core Protocol Package v1.0*. Zenodo. https://doi.org/10.5281/zenodo.21936410
+
+For the founding and methods paper:
+
+Sasano, K. (2026). *MIBO: A Sentinel Panel Survey of Public Generative-AI Information Behavior: Design, Pilot Lessons, and an International Mirror-Replication Architecture* (Version 1.0) [Preprint]. Zenodo. https://doi.org/10.5281/zenodo.22025100
