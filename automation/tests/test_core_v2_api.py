@@ -16,6 +16,8 @@ import core_v2_archive as archive
 import core_v2_executor as executor
 import core_v2_runner as runner
 
+RUNTIME = HERE.parent / "runtime"
+
 CONFIG = HERE / "config"
 
 
@@ -189,6 +191,28 @@ class CoreV2ArchiveTests(unittest.TestCase):
             archive.archive_success(**kwargs)
             with self.assertRaises(FileExistsError):
                 archive.archive_success(**kwargs)
+
+
+class InstalledSnapshotSealTests(unittest.TestCase):
+    def test_seal_is_hash_bound_and_append_only(self):
+        import importlib.util
+        spec = importlib.util.spec_from_file_location(
+            "seal_installed_snapshot", RUNTIME / "seal-installed-snapshot.py"
+        )
+        module = importlib.util.module_from_spec(spec)
+        assert spec.loader is not None
+        spec.loader.exec_module(module)
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d)
+            (root / "example.txt").write_text("ok\n", encoding="utf-8")
+            result = module.seal(root, "a" * 40)
+            self.assertEqual(result["source_commit_sha"], "a" * 40)
+            self.assertEqual(result["hashed_file_count"], 2)
+            sums = (root / "INSTALL_SHA256SUMS.txt").read_text(encoding="utf-8")
+            self.assertIn("example.txt", sums)
+            self.assertIn("INSTALL_PROVENANCE.json", sums)
+            with self.assertRaises(FileExistsError):
+                module.seal(root, "a" * 40)
 
 
 if __name__ == "__main__":
