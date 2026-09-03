@@ -68,6 +68,6 @@ Status update (3 September 2026): the planned MIBO Core v1.0 W01
 public-interface collection did not commence inside its registered field
 window. The v1.0 package remains the preserved historical specification and is
 not being rewritten or backfilled. MIBO Core continues prospectively under the
-API-only v2.0 protocol at `<V2_VERSION_DOI>`. API observations collected under
+API-only v2.0 protocol at `10.5281/zenodo.22264635`. API observations collected under
 v2.0 are not Ecological Live observations and must not be pooled with v1.0
 confirmatory data.

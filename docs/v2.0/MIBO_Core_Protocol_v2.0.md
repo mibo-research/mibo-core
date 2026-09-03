@@ -2,13 +2,15 @@
 
 **Version:** 2.0
 
-**Status:** Prospective release candidate; not effective until its version-specific Zenodo DOI is published
+**Status:** Final prospective protocol; registered before observation under version-specific Zenodo DOI `10.5281/zenodo.22264635`
 
 **Prepared:** 3 September 2026
 
 **Author:** Kento Sasano
 
 **Prior protocol:** MIBO Core Protocol Package v1.0, DOI `10.5281/zenodo.21936410`
+
+**Version-specific registration:** `10.5281/zenodo.22264635`
 
 ## 1. Purpose and version boundary
 

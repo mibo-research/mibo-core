@@ -1,0 +1,43 @@
+{
+  "schema_version": "2.0",
+  "protocol_name": "MIBO Core API-only Observatory",
+  "protocol_version": "2.0",
+  "protocol_status": "finalized_and_prospectively_registered",
+  "protocol_registration_id": "10.5281/zenodo.22264635",
+  "supersedes_execution_design": "MIBO Core v1.0 Ecological Live plus paired API",
+  "preserves_prior_record": true,
+  "primary_scientific_class": "confirmatory_primary",
+  "observation_surface": "provider_api",
+  "environment_class": "CLOSED",
+  "instrument_source_doi": "10.5281/zenodo.21936410",
+  "instrument_file": "instrument_v1.0.json",
+  "service_file": "services_v1.0.json",
+  "query_forms": 24,
+  "replications_per_form_per_lineage": 10,
+  "required_service_lineages": [
+    "MIBO-SL-001",
+    "MIBO-SL-002",
+    "MIBO-SL-003",
+    "MIBO-SL-004"
+  ],
+  "line_id": "ACI",
+  "seed_formula": "SHA-256(\"MIBO-v1.0|<Wave ID>|<Site ID>|<Mode ID>\"), first eight hex characters as integer",
+  "mode_id": "ACI",
+  "retrieval_and_tools": "disabled",
+  "missingness_rule": "retain; no fallback model, provider substitution, or imputation",
+  "retry_rule": "technical failures only; at most two retries; retry 1 after at least 10 minutes and retry 2 after at least an additional 30 minutes",
+  "waves": [
+    {"wave_id":"MIBO2-W01","start_utc":"2026-10-06T00:00:00Z","close_utc":"2026-10-08T00:00:00Z","calibration_wave":true,"window_a":{"start_offset_hours":0,"end_offset_hours":12},"window_b":{"start_offset_hours":24,"end_offset_hours":36}},
+    {"wave_id":"MIBO2-W02","start_utc":"2026-11-03T00:00:00Z","close_utc":"2026-11-05T00:00:00Z","calibration_wave":false,"window_a":null,"window_b":null},
+    {"wave_id":"MIBO2-W03","start_utc":"2026-12-01T00:00:00Z","close_utc":"2026-12-03T00:00:00Z","calibration_wave":false,"window_a":null,"window_b":null},
+    {"wave_id":"MIBO2-W04","start_utc":"2027-01-05T00:00:00Z","close_utc":"2027-01-07T00:00:00Z","calibration_wave":true,"window_a":{"start_offset_hours":0,"end_offset_hours":12},"window_b":{"start_offset_hours":24,"end_offset_hours":36}},
+    {"wave_id":"MIBO2-W05","start_utc":"2027-02-02T00:00:00Z","close_utc":"2027-02-04T00:00:00Z","calibration_wave":false,"window_a":null,"window_b":null},
+    {"wave_id":"MIBO2-W06","start_utc":"2027-03-02T00:00:00Z","close_utc":"2027-03-04T00:00:00Z","calibration_wave":false,"window_a":null,"window_b":null},
+    {"wave_id":"MIBO2-W07","start_utc":"2027-04-06T00:00:00Z","close_utc":"2027-04-08T00:00:00Z","calibration_wave":true,"window_a":{"start_offset_hours":0,"end_offset_hours":12},"window_b":{"start_offset_hours":24,"end_offset_hours":36}},
+    {"wave_id":"MIBO2-W08","start_utc":"2027-05-04T00:00:00Z","close_utc":"2027-05-06T00:00:00Z","calibration_wave":false,"window_a":null,"window_b":null},
+    {"wave_id":"MIBO2-W09","start_utc":"2027-06-01T00:00:00Z","close_utc":"2027-06-03T00:00:00Z","calibration_wave":false,"window_a":null,"window_b":null},
+    {"wave_id":"MIBO2-W10","start_utc":"2027-07-06T00:00:00Z","close_utc":"2027-07-08T00:00:00Z","calibration_wave":true,"window_a":{"start_offset_hours":0,"end_offset_hours":12},"window_b":{"start_offset_hours":24,"end_offset_hours":36}},
+    {"wave_id":"MIBO2-W11","start_utc":"2027-08-03T00:00:00Z","close_utc":"2027-08-05T00:00:00Z","calibration_wave":false,"window_a":null,"window_b":null},
+    {"wave_id":"MIBO2-W12","start_utc":"2027-09-07T00:00:00Z","close_utc":"2027-09-09T00:00:00Z","calibration_wave":false,"window_a":null,"window_b":null}
+  ]
+}
