@@ -132,6 +132,8 @@ install -o root -g root -m 0644 \
   "${INSTALL_ROOT}/runtime/mibo-shadow.service" /etc/systemd/system/mibo-shadow.service
 install -o root -g root -m 0644 \
   "${INSTALL_ROOT}/runtime/mibo-core-v2.service" /etc/systemd/system/mibo-core-v2.service
+install -o root -g root -m 0755 \
+  "${INSTALL_ROOT}/runtime/mibo-set-core-v2-api-key" /usr/local/sbin/mibo-set-core-v2-api-key
 
 systemd-analyze verify /etc/systemd/system/mibo-paired.service
 systemd-analyze verify /etc/systemd/system/mibo-shadow.service

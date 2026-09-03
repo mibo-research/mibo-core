@@ -107,6 +107,13 @@ the hash-bound authorization may `/etc/mibo/mibo-core-v2.env` be changed to:
 MIBO_CORE_V2_EXECUTION=ENABLED_AFTER_CORE_V2_GATE
 ```
 
+Enter or rotate any Core v2 provider key from an interactive SSH terminal with
+the dedicated hidden-input helper; the value is never echoed:
+
+```bash
+sudo mibo-set-core-v2-api-key PERPLEXITY_API_KEY
+```
+
 ## 7. Arm the API services
 
 After authorization, populate the exact manifest/freeze/authorization paths in the corresponding `/etc/mibo/*.env` file.
