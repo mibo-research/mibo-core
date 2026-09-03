@@ -1,6 +1,7 @@
 # MIBO Core Protocol Package v2.0
 
-This directory contains the prospective API-only successor to MIBO Core v1.0.
+This directory contains the prospectively registered API-only successor to MIBO Core v1.0.
+The version-specific release DOI is `10.5281/zenodo.22264635`.
 The v1.0 scientific record remains authoritative for its own public-interface
 design and is not modified by this package.
 

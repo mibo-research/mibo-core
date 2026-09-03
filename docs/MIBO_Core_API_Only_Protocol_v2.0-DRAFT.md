@@ -1,6 +1,6 @@
 # MIBO Core API-only Observatory v2.0 — prospective draft
 
-Status: **not finalized; not prospectively registered; not authorized for observation**
+Status: **superseded on 3 September 2026 by the final prospectively registered v2.0 protocol at DOI `10.5281/zenodo.22264635`; retained only for development provenance**
 
 This document records the requested prospective redesign of MIBO Core as an
 API-only, fully automated observatory. It does not amend, overwrite, or relabel
@@ -67,8 +67,7 @@ belong on the controlled runtime. The execution service requires the dedicated
 sentinel `MIBO_CORE_V2_EXECUTION=ENABLED_AFTER_CORE_V2_GATE` in addition to all
 file, hash, time-window, credential, and human-authorization checks.
 
-The complete human-readable release candidate is under `docs/v2.0/`. The
-canonical machine-readable draft is
-`automation/config/core_v2_protocol.draft.json`. Its draft status deliberately
-makes manifest generation and execution fail until a finalized, prospectively
-registered private copy exists.
+The final human-readable release is under `docs/v2.0/`. The finalized public
+machine-readable protocol is `automation/config/core_v2_protocol.v2.0.json`.
+The separate `.draft.json` file remains intentionally non-runnable so historical
+draft material cannot authorize execution.

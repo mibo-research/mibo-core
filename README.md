@@ -1,12 +1,13 @@
 # MIBO Core
 
-**Canonical scientific release:** MIBO Core Protocol Package v1.0  
-**DOI:** https://doi.org/10.5281/zenodo.21936410  
-**Scientific freeze:** 15 August 2026  
-**Effective date / Wave 1 start:** 1 September 2026  
-**License for protocol text:** CC BY 4.0
+- **Current scientific release:** MIBO Core Protocol Package v2.0
+- **DOI:** https://doi.org/10.5281/zenodo.22264635
+- **Prospective registration:** 3 September 2026
+- **First v2.0 field window:** 6 October 2026 00:00 UTC
+- **Historical v1.0 DOI:** https://doi.org/10.5281/zenodo.21936410
+- **License for protocol text:** CC BY 4.0
 
-MIBO Core is the common sentinel-panel program of MIBO for longitudinal observation of public generative-AI information behavior. The **Zenodo v1.0 record is the authoritative frozen archival specification**. This GitHub repository is its public operational mirror and implementation workspace.
+MIBO Core is the common sentinel-panel program of MIBO for longitudinal observation of generative-AI information behavior. The **Zenodo v2.0 record is the authoritative prospective specification for the API Core Interface (`ACI`) condition**. The Zenodo v1.0 record remains the frozen historical specification for its public-interface design; it is not amended, backfilled, or relabeled by v2.0. This GitHub repository is the public operational mirror and implementation workspace.
 
 MIBO is composed of **MIBO Core, MIBO Satellite, and MIBO Network**.
 
@@ -19,7 +20,20 @@ The founding and methods preprint provides the scholarly account of the MIBO des
 
 The paper is a companion scholarly output. It does **not** replace or amend the frozen MIBO Core Protocol Package v1.0, and its publication is not an additional MIBO-W01 start condition.
 
-## First-year v1.0 design
+## Current v2.0 design
+
+- fully automated, stateless provider-API observation on a controlled private runtime;
+- a distinct API Core Interface (`ACI`) condition, never labeled Ecological Live;
+- the unchanged four service lineages and 24 Japanese/English query forms from v1.0;
+- ten independent replications per cell: 960 initial requests in ordinary waves;
+- 1,120 initial requests in W01/W04/W07/W10 calibration waves;
+- retrieval and tools disabled, including disabled Perplexity search;
+- exact model identifiers and material settings frozen by a human before each wave; and
+- fail-closed execution, append-only capture, registered retry limits, and retained missingness.
+
+See `docs/v2.0/` and DOI `10.5281/zenodo.22264635`.
+
+## Historical v1.0 design
 
 - four persistent public service lineages;
 - 12 conceptual items and 24 Japanese/English query forms;
@@ -33,19 +47,20 @@ The paper is a companion scholarly output. It does **not** replace or amend the 
 
 ## Scientific source of truth
 
-Use the following precedence for current v1.0 work:
+Use the following precedence:
 
-1. **Zenodo:** `10.5281/zenodo.21936410` — frozen scientific specification;
-2. current v1.0 documents and governance files mirrored in this repository;
-3. prospectively completed Pre-Wave execution/configuration records;
-4. implementation code under `automation/` and `runtime/`;
-5. historical release-candidate files, which are retained only for provenance.
+1. **Zenodo v2.0:** `10.5281/zenodo.22264635` — current API-only scientific specification;
+2. **Zenodo v1.0:** `10.5281/zenodo.21936410` — frozen historical public-interface specification;
+3. the matching versioned documents and governance files mirrored in this repository;
+4. prospectively completed private execution/configuration records;
+5. implementation code under `automation/` and `runtime/`; and
+6. historical release-candidate files, retained only for provenance.
 
 A software change must not silently change the frozen scientific specification.
 
 ## Automation status
 
-The repository contains a protocol-locked automation layer for W01:
+The repository contains a protocol-locked, fail-closed automation layer for v2.0 API Core and retains the v1.0 operational implementation for provenance:
 
 - machine-readable frozen service, wave, and 24-form instrument configuration;
 - deterministic manifest generation and strict integrity validation;
@@ -55,13 +70,13 @@ The repository contains a protocol-locked automation layer for W01:
 - a terms-aware **human-operated** Ecological Live workstation that automates local manifest/tasking, timing, hashing, provenance, retry bookkeeping, and QC without scraping or controlling consumer webpages; and
 - a read-only Codex maintainer workflow for engineering/readiness review.
 
-See `automation/README.md` and `automation/W01_RUNBOOK.md` for the operational layer.
+See `docs/v2.0/`, `automation/core_v2_runner.py`, and the v2.0 runtime templates for the current operational layer.
 
-## Pre-Wave-1 gate
+## Pre-wave execution gate
 
-The scientific specification is frozen, but time-sensitive execution facts remain prospective. Before confirmatory collection, the applicable items in `PRE_WAVE1_EXECUTION_GATE.md` must be closed, including current provider Terms/access review, deployed UI configuration, paired model identifiers and comparability, technical dry run, storage/runtime readiness, and any required institutional determination.
+The v2.0 scientific specification is public, but time-sensitive execution facts remain prospective. Before confirmatory collection, the v2.0 Terms/access review, exact provider/model freeze, synthetic readiness checks, deterministic manifest validation, controlled-runtime health checks, and human-signed execution authorization must all be complete. The dedicated execution sentinel remains disabled until that gate closes.
 
-Failure to close a gate postpones or narrows collection; it does not authorize retrospective alteration of v1.0.
+Failure to close a gate postpones or narrows collection; it does not authorize model substitution, retrospective alteration, or self-authorization.
 
 ## Historical rc3 files
 
@@ -69,7 +84,11 @@ Files whose names end in `v1.0-rc3` are retained as historical pre-release artif
 
 ## Citation
 
-For the frozen protocol package:
+For the current API-only protocol package:
+
+Sasano, K. (2026). *MIBO Core Protocol Package v2.0*. Zenodo. https://doi.org/10.5281/zenodo.22264635
+
+For the historical public-interface protocol package:
 
 Sasano, K. (2026). *MIBO Core Protocol Package v1.0*. Zenodo. https://doi.org/10.5281/zenodo.21936410
 

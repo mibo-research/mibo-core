@@ -1,5 +1,15 @@
 # Zenodo release checklist — MIBO Core Protocol Package v2.0
 
+## Release result
+
+- Published: `2026-09-03`
+- Version DOI: `10.5281/zenodo.22264635`
+- Concept DOI: `10.5281/zenodo.21936409`
+- Archive: `mibo-core-protocol-v2.0.zip`
+- Archive SHA-256: `34bd2863c19962a02ff6f1e2b61ef7496d36530d01dc5de44b338ec9a16ac1b0`
+- Source commit embedded in the archive: `1bd161bbc77d95d43d73616b52d80e848cad352d`
+- v1.0 file preserved; transition note added to v1.0 metadata only.
+
 ## New-version metadata
 
 - Title: `MIBO Core Protocol Package v2.0`
