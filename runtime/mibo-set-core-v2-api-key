@@ -1,0 +1,41 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+name="${1:-}"
+case "${name}" in
+  OPENAI_API_KEY|ANTHROPIC_API_KEY|GEMINI_API_KEY|PERPLEXITY_API_KEY) ;;
+  *)
+    echo 'Usage: sudo mibo-set-core-v2-api-key {OPENAI_API_KEY|ANTHROPIC_API_KEY|GEMINI_API_KEY|PERPLEXITY_API_KEY}' >&2
+    exit 2
+    ;;
+esac
+
+target=/etc/mibo/mibo-core-v2.env
+umask 077
+printf 'Paste %s (input hidden), then press Enter: ' "${name}" >/dev/tty
+IFS= read -r -s value </dev/tty
+printf '\n' >/dev/tty
+if [[ -z "${value}" || "${value}" =~ [[:space:]] ]]; then
+  echo 'Empty or whitespace-containing key rejected; nothing written.' >&2
+  unset value
+  exit 3
+fi
+
+temporary="$(mktemp /etc/mibo/mibo-core-v2.env.tmp.XXXXXX)"
+trap 'rm -f "${temporary}"' EXIT
+if [[ -f "${target}" ]]; then
+  sed 's/\r$//' "${target}" | awk -v n="${name}" 'index($0,n "=") != 1' > "${temporary}"
+fi
+printf '%s=%s\n' "${name}" "${value}" >> "${temporary}"
+unset value
+chown root:mibo "${temporary}"
+chmod 0640 "${temporary}"
+mv -f "${temporary}" "${target}"
+trap - EXIT
+
+if grep -Eq "^${name}=.+$" "${target}"; then
+  echo "${name} securely stored for Core v2 (value not displayed)."
+else
+  echo 'Verification failed.' >&2
+  exit 4
+fi

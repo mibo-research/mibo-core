@@ -1,6 +1,9 @@
 # Controlled Japan-site runtime — Ubuntu installation
 
-This is the deployment path for the authoritative W01 runtime. It installs a commit-bound code snapshot for **MIBO Core paired API** and the optional **exploratory API Shadow Archive**, while leaving both execution paths disabled.
+This is the deployment path for the authoritative runtime. It installs a
+commit-bound code snapshot for **MIBO Core v1.0 paired API**, the optional
+**exploratory API Shadow Archive**, and the prospective **API-only MIBO Core
+v2.0**, while leaving every execution path disabled.
 
 ## 1. Machine baseline
 
@@ -38,16 +41,17 @@ The provisioner:
 - runs frozen-config checks, Python compilation, all synthetic unit tests, and a 960-row synthetic API Shadow manifest validation;
 - writes `INSTALL_PROVENANCE.json` with the exact source commit;
 - writes `INSTALL_SHA256SUMS.txt` over the final installed runtime;
-- installs `mibo-paired.service` and `mibo-shadow.service`;
+- installs `mibo-paired.service`, `mibo-shadow.service`, and `mibo-core-v2.service`;
 - installs private environment templates only when the administrator has not already created them;
-- verifies both systemd units;
-- does **not** enable or start either service.
+- verifies all three systemd units;
+- does **not** enable or start any service.
 
 The safety defaults remain:
 
 ```text
 MIBO_PROVIDER_EXECUTION=DISABLED
 MIBO_API_SHADOW_EXECUTION=DISABLED
+MIBO_CORE_V2_EXECUTION=DISABLED
 ```
 
 ## 4. Finalize private records
@@ -91,7 +95,24 @@ For API Shadow, the final record must additionally acknowledge `archive_class=ex
 MIBO_API_SHADOW_EXECUTION=ENABLED_AFTER_SHADOW_GATE
 ```
 
-One sentinel never authorizes the other pipeline.
+No sentinel authorizes another pipeline.
+
+For API-only Core v2.0, first finalize and prospectively register the v2.0
+protocol, complete the exact four-provider freeze, and run
+`runtime/preflight-core-v2.sh` with its synthetic-smoke sentinel enabled. The
+generated bundle still does not authorize execution. Only after human review of
+the hash-bound authorization may `/etc/mibo/mibo-core-v2.env` be changed to:
+
+```text
+MIBO_CORE_V2_EXECUTION=ENABLED_AFTER_CORE_V2_GATE
+```
+
+Enter or rotate any Core v2 provider key from an interactive SSH terminal with
+the dedicated hidden-input helper; the value is never echoed:
+
+```bash
+sudo mibo-set-core-v2-api-key PERPLEXITY_API_KEY
+```
 
 ## 7. Arm the API services
 
@@ -113,7 +134,17 @@ sudo systemctl start mibo-shadow.service
 sudo systemctl status mibo-shadow.service
 ```
 
-Both services can be armed before W01; the waiter processes remain idle until the frozen UTC wave start. GitHub Actions is not the authoritative scientific clock.
+Prospectively registered API-only Core v2.0:
+
+```bash
+sudo systemctl enable mibo-core-v2.service
+sudo systemctl start mibo-core-v2.service
+sudo systemctl status mibo-core-v2.service
+```
+
+The services can be armed before their registered wave; the waiter processes
+remain idle until the frozen UTC wave start. GitHub Actions is not the
+authoritative scientific clock.
 
 ## 8. Ecological Live
 

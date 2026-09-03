@@ -1,18 +1,23 @@
 cff-version: 1.2.0
-message: "If you use this protocol package, please cite the Zenodo record."
-title: "MIBO Core Protocol Package v1.0"
-version: "1.0"
-date-released: "2026-08-15"
+message: "If you use the current API-only protocol package, please cite its version-specific Zenodo record."
+title: "MIBO Core Protocol Package v2.0"
+version: "2.0"
+date-released: "2026-09-03"
 authors:
   - family-names: "Sasano"
     given-names: "Kento"
     orcid: "https://orcid.org/0009-0009-3853-8029"
     affiliation: "Okayama University; Keio Research Institute at SFC, Keio University"
-doi: "10.5281/zenodo.21936410"
+doi: "10.5281/zenodo.22264635"
 repository-code: "https://github.com/mibo-research/mibo-core"
-url: "https://doi.org/10.5281/zenodo.21936410"
+url: "https://doi.org/10.5281/zenodo.22264635"
 license: CC-BY-4.0
 references:
+  - type: generic
+    title: "MIBO Core Protocol Package v1.0"
+    doi: "10.5281/zenodo.21936410"
+    url: "https://doi.org/10.5281/zenodo.21936410"
+    scope: "Frozen historical public-interface protocol; not amended, backfilled, or relabeled by v2.0."
   - type: article
     title: "MIBO: A Sentinel Panel Survey of Public Generative-AI Information Behavior: Design, Pilot Lessons, and an International Mirror-Replication Architecture"
     authors:
@@ -29,4 +34,4 @@ references:
     year: 2026
     version: "1.0"
     url: "https://doi.org/10.5281/zenodo.22025100"
-    scope: "Founding and methods preprint. Cite this paper for the MIBO design and methodology; cite the top-level protocol DOI for the frozen v1.0 package."
+    scope: "Founding and methods preprint for the historical v1.0 design."

@@ -54,7 +54,7 @@ class InstalledRuntimeProvenanceTests(unittest.TestCase):
     @mock.patch.object(rh, "ntp_state")
     @mock.patch.object(rh.shutil, "disk_usage")
     def test_health_report_records_presence_not_secret_values(self, disk_usage, ntp_state, provenance_state):
-        disk_usage.return_value = os.statvfs("/") and type("U", (), {"free": 10 * 1024 ** 3})()
+        disk_usage.return_value = type("U", (), {"free": 10 * 1024 ** 3})()
         ntp_state.return_value = {"check_available": True, "ntp_synchronized": True, "raw": "yes"}
         provenance_state.return_value = {
             "commit_sha": "b" * 40,

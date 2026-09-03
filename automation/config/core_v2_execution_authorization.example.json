@@ -1,0 +1,20 @@
+{
+  "schema_version": "2.0",
+  "protocol_version": "2.0",
+  "protocol_registration_id": "REPLACE_AFTER_PROSPECTIVE_REGISTRATION",
+  "wave_id": "MIBO2-W01",
+  "site_id": "JP01",
+  "authorized": false,
+  "authorized_at_utc": null,
+  "operations_lead": null,
+  "protocol_finalized": false,
+  "prospective_registration_complete": false,
+  "terms_review_complete": false,
+  "model_freeze_complete": false,
+  "synthetic_dry_run_complete": false,
+  "authorize_confirmatory_api_core": false,
+  "protocol_file_sha256": null,
+  "manifest_sha256": null,
+  "provider_freeze_sha256": null,
+  "note": "Human authorization template. Automation must never turn these gates on."
+}
