@@ -1,0 +1,16 @@
+{
+  "schema_version": "2.0",
+  "protocol_version": "2.0",
+  "protocol_registration_id": "REPLACE_AFTER_PROSPECTIVE_REGISTRATION",
+  "wave_id": "MIBO2-W01",
+  "site_id": "JP01",
+  "frozen_at_utc": null,
+  "observation_surface": "provider_api",
+  "environment_class": "CLOSED",
+  "core_api": {
+    "MIBO-SL-001": {"status":"pending","model_id":null,"model_version_locked":false,"selection_rationale":null,"provider_evidence":null,"verified_at_utc":null,"terms_review_date":null,"terms_review_source":null,"request_profile":{"adapter":"openai_responses","endpoint":"https://api.openai.com/v1/responses","api_key_env":"OPENAI_API_KEY","max_output_tokens":null,"temperature":null,"top_p":null,"reasoning":null}},
+    "MIBO-SL-002": {"status":"pending","model_id":null,"model_version_locked":false,"selection_rationale":null,"provider_evidence":null,"verified_at_utc":null,"terms_review_date":null,"terms_review_source":null,"request_profile":{"adapter":"anthropic_messages","endpoint":"https://api.anthropic.com/v1/messages","api_key_env":"ANTHROPIC_API_KEY","anthropic_version":"2023-06-01","max_output_tokens":null,"temperature":null,"top_p":null}},
+    "MIBO-SL-003": {"status":"pending","model_id":null,"model_version_locked":false,"selection_rationale":null,"provider_evidence":null,"verified_at_utc":null,"terms_review_date":null,"terms_review_source":null,"request_profile":{"adapter":"gemini_generate_content","endpoint_base":"https://generativelanguage.googleapis.com/v1beta/models","api_key_env":"GEMINI_API_KEY","max_output_tokens":null,"temperature":null,"top_p":null}},
+    "MIBO-SL-004": {"status":"pending","model_id":null,"model_version_locked":false,"selection_rationale":null,"provider_evidence":null,"verified_at_utc":null,"terms_review_date":null,"terms_review_source":null,"request_profile":{"adapter":"perplexity_sonar","endpoint":"https://api.perplexity.ai/v1/sonar","api_key_env":"PERPLEXITY_API_KEY","max_output_tokens":null,"temperature":null,"top_p":null,"disable_search":true}}
+  }
+}

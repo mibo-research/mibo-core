@@ -89,7 +89,7 @@ provenance = {
     "installed_at_utc": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
     "source_worktree_clean": True,
     "collection_enabled_by_provisioner": False,
-    "installed_services": ["mibo-paired.service", "mibo-shadow.service"],
+    "installed_services": ["mibo-paired.service", "mibo-shadow.service", "mibo-core-v2.service"],
 }
 (root / "INSTALL_PROVENANCE.json").write_text(
     json.dumps(provenance, indent=2, sort_keys=True) + "\n", encoding="utf-8"
@@ -121,17 +121,24 @@ if [[ ! -e "${ETC_ROOT}/mibo-shadow.env" ]]; then
   install -o root -g "${MIBO_GROUP}" -m 0640 \
     "${INSTALL_ROOT}/runtime/mibo-shadow.env.example" "${ETC_ROOT}/mibo-shadow.env"
 fi
+if [[ ! -e "${ETC_ROOT}/mibo-core-v2.env" ]]; then
+  install -o root -g "${MIBO_GROUP}" -m 0640 \
+    "${INSTALL_ROOT}/runtime/mibo-core-v2.env.example" "${ETC_ROOT}/mibo-core-v2.env"
+fi
 
 install -o root -g root -m 0644 \
   "${INSTALL_ROOT}/runtime/mibo-paired.service" /etc/systemd/system/mibo-paired.service
 install -o root -g root -m 0644 \
   "${INSTALL_ROOT}/runtime/mibo-shadow.service" /etc/systemd/system/mibo-shadow.service
+install -o root -g root -m 0644 \
+  "${INSTALL_ROOT}/runtime/mibo-core-v2.service" /etc/systemd/system/mibo-core-v2.service
 
 systemd-analyze verify /etc/systemd/system/mibo-paired.service
 systemd-analyze verify /etc/systemd/system/mibo-shadow.service
+systemd-analyze verify /etc/systemd/system/mibo-core-v2.service
 systemctl daemon-reload
 
-# Safety assertion: provisioning itself must never arm either API executor.
+# Safety assertion: provisioning itself must never arm any API executor.
 grep -q '^MIBO_PROVIDER_EXECUTION=DISABLED$' "${ETC_ROOT}/mibo-paired.env" || {
   echo "Expected paired execution to remain DISABLED after provisioning." >&2
   exit 1
@@ -140,9 +147,13 @@ grep -q '^MIBO_API_SHADOW_EXECUTION=DISABLED$' "${ETC_ROOT}/mibo-shadow.env" || 
   echo "Expected API Shadow execution to remain DISABLED after provisioning." >&2
   exit 1
 }
+grep -q '^MIBO_CORE_V2_EXECUTION=DISABLED$' "${ETC_ROOT}/mibo-core-v2.env" || {
+  echo "Expected Core v2 execution to remain DISABLED after provisioning." >&2
+  exit 1
+}
 
 echo "MIBO Japan-site runtime provisioned from commit ${SOURCE_COMMIT}."
 echo "Installed snapshot: ${INSTALL_ROOT}"
 echo "Private configuration: ${PRIVATE_ROOT} and ${ETC_ROOT}"
 echo "Research data: ${DATA_ROOT}"
-echo "Neither paired nor API Shadow collection was enabled or started."
+echo "Paired, API Shadow, and Core v2 collection all remain disabled and were not started."
