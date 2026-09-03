@@ -7,7 +7,7 @@ import unittest
 import zipfile
 
 
-ROOT = Path(__file__).resolve().parents[2]
+ROOT = Path(__file__).resolve().parents[1]
 AUTOMATION = ROOT / "automation"
 sys.path.insert(0, str(AUTOMATION))
 sys.path.insert(0, str(ROOT / "release"))
