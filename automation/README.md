@@ -3,7 +3,7 @@
 This directory is the deterministic execution layer for MIBO Core v1.0.
 
 The prospective API-only MIBO Core v2.0 redesign is implemented in the
-`core_v2_*` modules and documented in
+`core_v2_*` modules and documented in `docs/v2.0/`, with a draft overview in
 `docs/MIBO_Core_API_Only_Protocol_v2.0-DRAFT.md`. It is intentionally fail-closed:
 the checked-in protocol remains a draft, and no v2 observation can run until a
 separate finalized registration, four-provider model freeze, synthetic dry run,

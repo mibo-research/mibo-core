@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import argparse
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 import hashlib
 import json
 import os
@@ -110,6 +110,23 @@ def _prompt_map() -> dict[str, str]:
     return {f["query_form_id"]: f["text"] for f in v1._forms()}
 
 
+def _row_bounds(protocol: dict[str, Any], row: dict[str, Any]) -> tuple[datetime, datetime]:
+    wave_cfg = runner.wave(protocol, row["wave_id"])
+    field_start = parse_utc(wave_cfg["start_utc"])
+    field_close = parse_utc(wave_cfg["close_utc"])
+    window_id = row["window_id"]
+    if window_id == "STD":
+        return field_start, field_close
+    key = {"WA": "window_a", "WB": "window_b"}.get(window_id)
+    window = wave_cfg.get(key) if key else None
+    if not isinstance(window, dict):
+        raise ValueError(f"Core v2 row uses unavailable window {window_id}")
+    return (
+        field_start + timedelta(hours=int(window["start_offset_hours"])),
+        field_start + timedelta(hours=int(window["end_offset_hours"])),
+    )
+
+
 def _clone_retry_row(row: dict[str, Any], next_attempt: int) -> dict[str, Any]:
     service = next(s for s in v1._services() if s["service_lineage_id"] == row["service_lineage_id"])
     clone = dict(row)
@@ -190,9 +207,10 @@ def execute(*, protocol_path: Path, manifest_path: Path, freeze_path: Path,
     )
     prompts = _prompt_map()
     done = _processed_attempt_ids(data_root, rows[0]["site_id"], rows[0]["wave_id"])
+    protocol, _ = runner.load_protocol(protocol_path)
     now = datetime.now(timezone.utc)
     queue: list[tuple[datetime, int, str, dict[str, Any]]] = [
-        (now, int(row["execution_order"]), row["attempt_id"], row)
+        (max(now, _row_bounds(protocol, row)[0]), int(row["execution_order"]), row["attempt_id"], row)
         for row in rows if row["attempt_id"] not in done
     ]
     for due, retry_row in _existing_retry_rows(data_root, rows):
@@ -215,12 +233,30 @@ def execute(*, protocol_path: Path, manifest_path: Path, freeze_path: Path,
             queue.append((pause_until[lineage], order, row["attempt_id"], row))
             continue
         current = datetime.now(timezone.utc)
+        _row_start, row_close = _row_bounds(protocol, row)
         if current >= field_close:
             break
+        if current >= row_close:
+            archive.archive_failure(
+                data_root=data_root, row=row,
+                failure_kind="window_expired_before_attempt",
+                message="registered row window closed before this attempt could start",
+                failed_at_utc=current.isoformat().replace("+00:00", "Z"),
+            )
+            summary["failed_attempts"] += 1
+            continue
         if due > current:
-            time.sleep(min((due - current).total_seconds(), max(0.0, (field_close - current).total_seconds())))
-            if datetime.now(timezone.utc) >= field_close:
-                break
+            time.sleep(min((due - current).total_seconds(), max(0.0, (row_close - current).total_seconds())))
+            current = datetime.now(timezone.utc)
+            if current >= row_close:
+                archive.archive_failure(
+                    data_root=data_root, row=row,
+                    failure_kind="window_expired_before_attempt",
+                    message="registered row window closed while the attempt was waiting",
+                    failed_at_utc=current.isoformat().replace("+00:00", "Z"),
+                )
+                summary["failed_attempts"] += 1
+                continue
         cfg = freeze["core_api"][lineage]
         try:
             result = call_provider(
@@ -240,7 +276,7 @@ def execute(*, protocol_path: Path, manifest_path: Path, freeze_path: Path,
             decision = decide_retry(
                 attempt=int(row["attempt"]), failure_kind=exc.kind,
                 failed_at=failed_at, provider_retry_after_seconds=exc.retry_after_seconds,
-                field_close=field_close,
+                field_close=row_close,
             )
             retry_due: datetime | None = None
             if decision.retry:

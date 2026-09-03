@@ -15,22 +15,26 @@ as if they were v1.0 Ecological Live observations.
 
 The v1.0 service lineages and exact 24 frozen query forms are carried forward
 without wording changes. Each of the four lineages receives each query form ten
-times, for 960 initial API requests per wave. Requests are independent,
-stateless, and environment-closed. Retrieval, browsing, external tools, files,
-connectors, and system-level prompt additions are prohibited. Perplexity is
-admissible in this new protocol only with `disable_search=true`.
+times, for 960 initial API requests in an ordinary wave. W01/W04/W07/W10 repeat
+the four English Anchor forms in Window B and therefore contain 1,120 initial
+requests. Requests are independent, stateless, and environment-closed.
+Retrieval, browsing, external tools, files, connectors, and system-level prompt
+additions are prohibited. Perplexity is admissible in this new protocol only
+with `disable_search=true`.
 
 The proposed first v2.0 field window is 2026-10-06 00:00 UTC through
 2026-10-08 00:00 UTC (2026-10-06 09:00 JST through 2026-10-08 09:00 JST), under
 the new wave ID `MIBO2-W01`. This is a proposed calibration wave because it is
-the first wave under a changed observation surface.
+the first wave under a changed observation surface. The twelve-wave cycle ends
+with MIBO2-W12 on 2027-09-09 00:00 UTC.
 
 ## Automation boundary
 
 The controlled Google Cloud runtime may automatically:
 
 - wait for the exact registered start time;
-- execute all 960 initial requests in deterministic order;
+- execute all 960 ordinary-wave or 1,120 calibration-wave initial requests in
+  deterministic order and registered windows;
 - use only prospectively frozen exact model IDs and request settings;
 - store request payloads minus credentials, raw responses, returned model
   metadata, timing, usage, failures, retry links, and hashes append-only;
@@ -63,7 +67,8 @@ belong on the controlled runtime. The execution service requires the dedicated
 sentinel `MIBO_CORE_V2_EXECUTION=ENABLED_AFTER_CORE_V2_GATE` in addition to all
 file, hash, time-window, credential, and human-authorization checks.
 
-The canonical machine-readable draft is
+The complete human-readable release candidate is under `docs/v2.0/`. The
+canonical machine-readable draft is
 `automation/config/core_v2_protocol.draft.json`. Its draft status deliberately
 makes manifest generation and execution fail until a finalized, prospectively
 registered private copy exists.

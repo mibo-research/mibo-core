@@ -37,6 +37,7 @@
     {"wave_id":"MIBO2-W08","start_utc":"2027-05-04T00:00:00Z","close_utc":"2027-05-06T00:00:00Z","calibration_wave":false,"window_a":null,"window_b":null},
     {"wave_id":"MIBO2-W09","start_utc":"2027-06-01T00:00:00Z","close_utc":"2027-06-03T00:00:00Z","calibration_wave":false,"window_a":null,"window_b":null},
     {"wave_id":"MIBO2-W10","start_utc":"2027-07-06T00:00:00Z","close_utc":"2027-07-08T00:00:00Z","calibration_wave":true,"window_a":{"start_offset_hours":0,"end_offset_hours":12},"window_b":{"start_offset_hours":24,"end_offset_hours":36}},
-    {"wave_id":"MIBO2-W11","start_utc":"2027-08-03T00:00:00Z","close_utc":"2027-08-05T00:00:00Z","calibration_wave":false,"window_a":null,"window_b":null}
+    {"wave_id":"MIBO2-W11","start_utc":"2027-08-03T00:00:00Z","close_utc":"2027-08-05T00:00:00Z","calibration_wave":false,"window_a":null,"window_b":null},
+    {"wave_id":"MIBO2-W12","start_utc":"2027-09-07T00:00:00Z","close_utc":"2027-09-09T00:00:00Z","calibration_wave":false,"window_a":null,"window_b":null}
   ]
 }

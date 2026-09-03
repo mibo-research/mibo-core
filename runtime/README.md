@@ -7,9 +7,10 @@ not a browser or public-UI collector.
 ## Prospective API-only Core v2.0
 
 `mibo-core-v2.service` is the dedicated runtime for the requested API-only Core
-redesign. It processes 960 initial requests without per-observation human
-operation and writes only to `/srv/mibo-data/v2.0/<site>/<wave>/`. It cannot use
-the v1.0 or API Shadow execution sentinels.
+redesign. It processes 960 ordinary-wave or 1,120 calibration-wave initial
+requests without per-observation human operation and writes only to
+`/srv/mibo-data/v2.0/<site>/<wave>/`. It cannot use the v1.0 or API Shadow
+execution sentinels.
 
 The service remains inoperable until a finalized, prospectively registered v2.0
 protocol, an exact four-provider model/settings freeze, a four-provider

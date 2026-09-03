@@ -80,11 +80,11 @@ class CoreV2ManifestTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "not finalized"):
             runner.load_protocol(CONFIG / "core_v2_protocol.draft.json")
 
-    def test_four_lineage_manifest_is_960_confirmatory_api_rows(self):
+    def test_calibration_manifest_has_registered_window_counts(self):
         with tempfile.TemporaryDirectory() as d:
             fixture = CoreV2Fixture(Path(d))
             rows = runner.read_csv(fixture.manifest)
-            self.assertEqual(len(rows), 960)
+            self.assertEqual(len(rows), 1120)
             self.assertTrue(all(r["scientific_class"] == "confirmatory_primary" for r in rows))
             self.assertTrue(all(r["observation_surface"] == "provider_api" for r in rows))
             self.assertTrue(all(r["environment_class"] == "CLOSED" for r in rows))
@@ -93,7 +93,32 @@ class CoreV2ManifestTests(unittest.TestCase):
             ), [])
             for sid in {r["service_lineage_id"] for r in rows}:
                 subset = [r for r in rows if r["service_lineage_id"] == sid]
-                self.assertEqual(len(subset), 240)
+                self.assertEqual(len(subset), 280)
+            self.assertEqual(sum(r["window_id"] == "WA" for r in rows), 160)
+            self.assertEqual(sum(r["window_id"] == "WB" for r in rows), 160)
+            self.assertEqual(sum(r["window_id"] == "STD" for r in rows), 800)
+
+    def test_non_calibration_manifest_is_960_rows(self):
+        with tempfile.TemporaryDirectory() as d:
+            fixture = CoreV2Fixture(Path(d))
+            freeze = json.loads(fixture.freeze.read_text(encoding="utf-8"))
+            freeze["wave_id"] = "MIBO2-W02"
+            freeze_path = Path(d) / "freeze-w02.json"
+            freeze_path.write_text(json.dumps(freeze), encoding="utf-8")
+            rows = runner.generate_manifest(
+                protocol_path=fixture.protocol, freeze_path=freeze_path,
+                wave_id="MIBO2-W02", site_id="JP01",
+            )
+            self.assertEqual(len(rows), 960)
+            self.assertTrue(all(r["window_id"] == "STD" for r in rows))
+
+    def test_protocol_registers_twelve_waves_and_four_calibration_waves(self):
+        protocol = json.loads((CONFIG / "core_v2_protocol.draft.json").read_text(encoding="utf-8"))
+        self.assertEqual(len(protocol["waves"]), 12)
+        self.assertEqual(
+            [w["wave_id"] for w in protocol["waves"] if w["calibration_wave"]],
+            ["MIBO2-W01", "MIBO2-W04", "MIBO2-W07", "MIBO2-W10"],
+        )
 
     def test_manifest_is_deterministic_and_tampering_is_detected(self):
         with tempfile.TemporaryDirectory() as d:
@@ -138,11 +163,29 @@ class CoreV2ExecutionGateTests(unittest.TestCase):
                 data_root=root / "data",
                 now=datetime(2026, 10, 6, 1, 0, tzinfo=timezone.utc),
             )
-            self.assertEqual(len(rows), 960)
+            self.assertEqual(len(rows), 1120)
             self.assertTrue(auth["authorize_confirmatory_api_core"])
             self.assertEqual(len(freeze["core_api"]), 4)
             self.assertEqual(start, datetime(2026, 10, 6, 0, 0, tzinfo=timezone.utc))
             self.assertEqual(close, datetime(2026, 10, 8, 0, 0, tzinfo=timezone.utc))
+
+    def test_calibration_row_bounds_use_registered_windows(self):
+        with tempfile.TemporaryDirectory() as d:
+            fixture = CoreV2Fixture(Path(d))
+            protocol, _ = runner.load_protocol(fixture.protocol)
+            rows = runner.read_csv(fixture.manifest)
+            wa = next(r for r in rows if r["window_id"] == "WA")
+            wb = next(r for r in rows if r["window_id"] == "WB")
+            self.assertEqual(
+                executor._row_bounds(protocol, wa),
+                (datetime(2026, 10, 6, 0, 0, tzinfo=timezone.utc),
+                 datetime(2026, 10, 6, 12, 0, tzinfo=timezone.utc)),
+            )
+            self.assertEqual(
+                executor._row_bounds(protocol, wb),
+                (datetime(2026, 10, 7, 0, 0, tzinfo=timezone.utc),
+                 datetime(2026, 10, 7, 12, 0, tzinfo=timezone.utc)),
+            )
 
     @mock.patch.dict(os.environ, {}, clear=True)
     def test_execute_requires_separate_core_v2_sentinel_before_any_call(self):
