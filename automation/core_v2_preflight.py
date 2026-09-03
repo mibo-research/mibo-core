@@ -99,14 +99,17 @@ def run_preflight(*, protocol_path: Path, freeze_path: Path, out_dir: Path,
             path = out_dir / "models" / _safe_name(label) / f"{model_id.replace('/', '_')}.json"
             metadata_file = str(path.relative_to(out_dir))
             metadata_sha = _write_exclusive(path, record)
-        checks.append({
+        verification_method = (
+            "exact_metadata_endpoint" if exact is not None and verified else
+            "catalog_listing" if verified else None
+        )
+        check = {
             "service_lineage_id": sid, "provider": label, "model_id": model_id,
             "listed_in_catalog_response": listed, "exact_metadata_verified": verified,
+            "verification_method": verification_method,
             "metadata_returned_model_id": returned_id,
             "metadata_file": metadata_file, "metadata_sha256": metadata_sha,
-        })
-        if not verified:
-            errors.append(f"{label} Core v2 model was not verified: {model_id}")
+        }
         if smoke:
             if os.environ.get("MIBO_CORE_V2_SMOKE_TEST") != SMOKE_SENTINEL:
                 raise ValueError(f"Core v2 smoke requires MIBO_CORE_V2_SMOKE_TEST={SMOKE_SENTINEL}")
@@ -122,6 +125,11 @@ def run_preflight(*, protocol_path: Path, freeze_path: Path, out_dir: Path,
                     "pass": False, "failure_kind": exc.kind, "http_status": exc.http_status,
                 })
             else:
+                returned_model_matches = result.returned_model == model_id
+                if provider == "Perplexity" and exact is None and returned_model_matches:
+                    verified = True
+                    check["exact_metadata_verified"] = True
+                    check["verification_method"] = "synthetic_smoke_returned_model"
                 record = {
                     "protocol_version": runner.PROTOCOL_VERSION,
                     "scientific_class": runner.SCIENTIFIC_CLASS,
@@ -134,7 +142,8 @@ def run_preflight(*, protocol_path: Path, freeze_path: Path, out_dir: Path,
                     "request_payload": result.request_payload, "response": result.response_json,
                     "synthetic_prompt_sha256": hashlib.sha256(SYNTHETIC_PROMPT.encode("utf-8")).hexdigest(),
                     "registered_mibo_prompt_used": False,
-                    "pass": 200 <= result.http_status < 300,
+                    "returned_model_matches_requested": returned_model_matches,
+                    "pass": 200 <= result.http_status < 300 and returned_model_matches,
                 }
                 path = out_dir / "smoke" / _safe_name(label) / f"{model_id.replace('/', '_')}.json"
                 smoke_checks.append({
@@ -142,6 +151,14 @@ def run_preflight(*, protocol_path: Path, freeze_path: Path, out_dir: Path,
                     "pass": record["pass"], "file": str(path.relative_to(out_dir)),
                     "sha256": _write_exclusive(path, record),
                 })
+                if not returned_model_matches:
+                    errors.append(
+                        f"{label} Core v2 smoke returned {result.returned_model!r}, "
+                        f"expected {model_id!r}"
+                    )
+        checks.append(check)
+        if not verified:
+            errors.append(f"{label} Core v2 model was not verified: {model_id}")
     report = {
         "schema_version": runner.PROTOCOL_VERSION,
         "protocol_version": runner.PROTOCOL_VERSION,

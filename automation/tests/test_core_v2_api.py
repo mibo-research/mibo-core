@@ -5,6 +5,7 @@ import json
 import os
 from pathlib import Path
 import tempfile
+from types import SimpleNamespace
 import unittest
 from unittest import mock
 import sys
@@ -14,6 +15,7 @@ sys.path.insert(0, str(HERE))
 
 import core_v2_archive as archive
 import core_v2_executor as executor
+import core_v2_preflight as preflight
 import core_v2_runner as runner
 
 RUNTIME = HERE.parent / "runtime"
@@ -150,6 +152,90 @@ class CoreV2ManifestTests(unittest.TestCase):
                 runner.load_freeze(
                     bad, protocol=protocol, wave_id="MIBO2-W01", site_id="JP01",
                 )
+
+
+class CoreV2ReadinessTests(unittest.TestCase):
+    @mock.patch.object(preflight, "call_provider")
+    @mock.patch.object(preflight.api, "fetch_exact_model")
+    @mock.patch.object(preflight.api, "fetch_catalog")
+    def test_perplexity_sonar_can_be_verified_by_exact_smoke_return_model(
+            self, fetch_catalog, fetch_exact_model, call_provider):
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d)
+            fixture = CoreV2Fixture(root)
+            freeze = json.loads(fixture.freeze.read_text(encoding="utf-8"))
+            freeze["core_api"]["MIBO-SL-004"]["model_id"] = "sonar-pro"
+            fixture.freeze.write_text(json.dumps(freeze), encoding="utf-8")
+
+            def catalog_side(provider, timeout_s=30):
+                ids = ["perplexity/sonar"] if provider == "Perplexity" else [
+                    freeze["core_api"][sid]["model_id"]
+                    for sid in freeze["core_api"]
+                    if {
+                        "MIBO-SL-001": "OpenAI",
+                        "MIBO-SL-002": "Anthropic",
+                        "MIBO-SL-003": "Google",
+                    }.get(sid) == provider
+                ]
+                return SimpleNamespace(
+                    provider=provider,
+                    endpoint="https://example.invalid/models",
+                    status=200,
+                    started_at_utc="2026-09-03T00:00:00Z",
+                    completed_at_utc="2026-09-03T00:00:01Z",
+                    duration_ms=1000,
+                    data={"data": []},
+                ), ids
+
+            def exact_side(provider, model_id, timeout_s=30):
+                if provider == "Perplexity":
+                    return None
+                data = {"name": f"models/{model_id}"} if provider == "Google" else {"id": model_id}
+                return SimpleNamespace(
+                    provider=provider,
+                    endpoint="https://example.invalid/model",
+                    status=200,
+                    started_at_utc="2026-09-03T00:00:00Z",
+                    completed_at_utc="2026-09-03T00:00:01Z",
+                    duration_ms=1000,
+                    data=data,
+                )
+
+            def call_side(*, provider, model_id, prompt, profile, timeout_s):
+                return SimpleNamespace(
+                    returned_model=model_id,
+                    http_status=200,
+                    started_at_utc="2026-09-03T00:00:00Z",
+                    completed_at_utc="2026-09-03T00:00:01Z",
+                    duration_ms=1000,
+                    usage={},
+                    request_payload={"model": model_id},
+                    response_json={"model": model_id},
+                )
+
+            fetch_catalog.side_effect = catalog_side
+            fetch_exact_model.side_effect = exact_side
+            call_provider.side_effect = call_side
+            with mock.patch.dict(os.environ, {
+                "MIBO_CORE_V2_SMOKE_TEST": "ENABLED_AFTER_TERMS_REVIEW",
+            }, clear=True):
+                result = preflight.run_preflight(
+                    protocol_path=fixture.protocol,
+                    freeze_path=fixture.freeze,
+                    out_dir=root / "evidence",
+                    smoke=True,
+                )
+            self.assertTrue(result["pass"])
+            perplexity = next(
+                c for c in result["model_checks"]
+                if c["provider"] == "Perplexity AI"
+            )
+            self.assertFalse(perplexity["listed_in_catalog_response"])
+            self.assertTrue(perplexity["exact_metadata_verified"])
+            self.assertEqual(
+                perplexity["verification_method"],
+                "synthetic_smoke_returned_model",
+            )
 
 
 class CoreV2ExecutionGateTests(unittest.TestCase):
