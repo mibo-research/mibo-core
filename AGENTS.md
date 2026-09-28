@@ -1,9 +1,11 @@
 # AGENTS.md — MIBO Core automation rules
 
 ## Canonical scientific source
-- The frozen scientific specification is **MIBO Core Protocol Package v1.0**, DOI `10.5281/zenodo.21936410`.
+- The published API-only scientific specification is **MIBO Core Protocol Package v2.0**, DOI `10.5281/zenodo.22264635`. The v1.0 DOI `10.5281/zenodo.21936410` remains the frozen public-interface predecessor and source of the fixed instrument.
+- `docs/v2.1/` and `automation/config/core_v21_protocol.draft.json` are an **unregistered draft**. They have no confirmatory authority until a distinct version-specific DOI is public before W01.
 - Do not change fixed query wording, query hashes, panel membership, wave dates, hypotheses, thresholds, or comparability rules in an automation PR.
 - A scientific change requires a prospective protocol version. Do not disguise it as a software fix.
+- The v2.1 runtime must never consume a v2.0 freeze, authorization, or protocol, and must write only in the v2.1 data namespace. Neither version's execution sentinel enables the other.
 
 ## Codex role
 - Codex is a **software-engineering and review agent**, not an adaptive scientific observer.

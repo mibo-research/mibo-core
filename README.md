@@ -7,6 +7,12 @@
 - **Historical v1.0 DOI:** https://doi.org/10.5281/zenodo.21936410
 - **License for protocol text:** CC BY 4.0
 
+The proposed v2.1 schedule amendment is an **unregistered draft** in
+`docs/v2.1/`. It proposes W01 on 1 October 2026 00:00 UTC. The v2.0 DOI and
+registered 6 October schedule remain authoritative until a new version-specific
+DOI is public before any v2.1 observation. The isolated v2.1 runtime remains
+disabled pending registration and private Pre-Wave authorization.
+
 MIBO Core is the common sentinel-panel program of MIBO for longitudinal observation of generative-AI information behavior. The **Zenodo v2.0 record is the authoritative prospective specification for the API Core Interface (`ACI`) condition**. The Zenodo v1.0 record remains the frozen historical specification for its public-interface design; it is not amended, backfilled, or relabeled by v2.0. This GitHub repository is the public operational mirror and implementation workspace.
 
 MIBO is composed of **MIBO Core, MIBO Satellite, and MIBO Network**.
