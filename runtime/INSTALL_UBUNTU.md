@@ -43,7 +43,7 @@ The provisioner:
 - writes `INSTALL_SHA256SUMS.txt` over the final installed runtime;
 - installs `mibo-paired.service`, `mibo-shadow.service`, and `mibo-core-v2.service`;
 - installs private environment templates only when the administrator has not already created them;
-- verifies all three systemd units;
+- verifies all four systemd units;
 - does **not** enable or start any service.
 
 The safety defaults remain:
@@ -52,6 +52,7 @@ The safety defaults remain:
 MIBO_PROVIDER_EXECUTION=DISABLED
 MIBO_API_SHADOW_EXECUTION=DISABLED
 MIBO_CORE_V2_EXECUTION=DISABLED
+MIBO_CORE_V21_EXECUTION=DISABLED
 ```
 
 ## 4. Finalize private records
@@ -107,6 +108,23 @@ the hash-bound authorization may `/etc/mibo/mibo-core-v2.env` be changed to:
 MIBO_CORE_V2_EXECUTION=ENABLED_AFTER_CORE_V2_GATE
 ```
 
+For the proposed 1 October v2.1 W01, publish the distinct version-specific
+protocol first and prepare its private four-provider freeze and authorization.
+Run `runtime/preflight-core-v21.sh` with its synthetic-smoke sentinel after
+the four Terms/access decisions. Review the separate v2.1 bundle and its
+1,120-row manifest. Only after the Operations Lead signs the v2.1
+authorization may `/etc/mibo/mibo-core-v21.env` be changed to:
+
+```text
+MIBO_CORE_V21_EXECUTION=ENABLED_AFTER_CORE_V21_GATE
+```
+
+The v2.0 sentinel does not enable the v2.1 service. Do not arm both versions
+for the same W01.
+
+For v2.1 keys, use the separate hidden-input helper from an interactive SSH
+terminal, for example `sudo mibo-set-core-v21-api-key PERPLEXITY_API_KEY`.
+
 Enter or rotate any Core v2 provider key from an interactive SSH terminal with
 the dedicated hidden-input helper; the value is never echoed:
 
@@ -140,6 +158,15 @@ Prospectively registered API-only Core v2.0:
 sudo systemctl enable mibo-core-v2.service
 sudo systemctl start mibo-core-v2.service
 sudo systemctl status mibo-core-v2.service
+```
+
+After the distinct v2.1 registration and private authorization, arm the
+amended W01 on the controlled site host:
+
+```bash
+sudo systemctl enable mibo-core-v21.service
+sudo systemctl start mibo-core-v21.service
+sudo systemctl status mibo-core-v21.service
 ```
 
 The services can be armed before their registered wave; the waiter processes

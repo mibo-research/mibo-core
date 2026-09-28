@@ -4,6 +4,18 @@ This directory contains **fail-closed** runtime templates for the frozen MIBO
 Core v1.0 paired API module and the prospective API-only MIBO Core v2.0. It is
 not a browser or public-UI collector.
 
+## Prospective v2.1 schedule amendment (draft, not registered)
+
+`mibo-core-v21.service` is an isolated, default-disabled executor for the
+proposed 1 October 2026 00:00 UTC W01. It uses `core_v21_*` modules, a distinct
+`MIBO_CORE_V21_EXECUTION=ENABLED_AFTER_CORE_V21_GATE` sentinel, and
+`<MIBO_DATA_ROOT>/v2.1/` storage. The checked-in v2.1 protocol is an
+unregistered draft and deliberately fails the final-protocol gate. Reserve and
+publish the new version-specific Zenodo DOI *before* W01; finalize the private
+four-provider freeze and human authorization, then use
+`runtime/preflight-core-v21.sh` on the controlled host. Never feed v2.0 files or
+authorization into this service. The v2.0 collector remains preserved.
+
 ## Prospective API-only Core v2.0
 
 `mibo-core-v2.service` is the dedicated runtime for the requested API-only Core
