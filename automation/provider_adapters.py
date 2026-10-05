@@ -280,18 +280,101 @@ def call_perplexity(*, model_id: str, prompt: str, profile: dict[str, Any], time
     )
 
 
+def call_perplexity_agent(*, model_id: str, prompt: str, profile: dict[str, Any], timeout_s: int = 180) -> AdapterResult:
+    """Closed Agent transport; admission by a scientific executor is separate.
+
+    The registered Core v2.0 freeze validator intentionally does not admit
+    this transport. A prospective protocol review must precede admission.
+    """
+    allowed = {
+        "adapter", "endpoint", "api_key_env", "max_output_tokens",
+        "temperature", "top_p", "reasoning", "disable_search",
+    }
+    if set(profile) - allowed:
+        raise ValueError("Perplexity Agent profile contains unsupported capability/settings keys")
+    if profile.get("disable_search") is not True:
+        raise ValueError("closed Perplexity Agent transport requires disable_search=true")
+    if not model_id.startswith("perplexity/"):
+        raise ValueError("Perplexity lineage requires an explicit perplexity/ model ID")
+    limit = profile.get("max_output_tokens")
+    if isinstance(limit, bool) or not isinstance(limit, int) or limit < 1:
+        raise ValueError("Perplexity Agent requires a positive integer max_output_tokens")
+    endpoint = profile.get("endpoint", "https://api.perplexity.ai/v1/agent")
+    if endpoint not in {
+        "https://api.perplexity.ai/v1/agent",
+        "https://api.perplexity.ai/v1/responses",
+    }:
+        raise ValueError("Perplexity Agent requires an official Agent endpoint")
+    payload: dict[str, Any] = {
+        "model": model_id,
+        "input": [{"role": "user", "content": prompt}],
+        "max_output_tokens": limit,
+        "stream": False,
+        "background": False,
+        "store": False,
+        "max_steps": 1,
+        "tool_choice": "none",
+    }
+    # No preset, saved profile, fallback models, tools, or continuation ID.
+    for key in ("temperature", "top_p", "reasoning"):
+        if profile.get(key) is not None:
+            payload[key] = profile[key]
+    status, raw, data, duration, started, completed = _post_json(
+        url=endpoint,
+        headers={
+            "Authorization": f"Bearer {_api_key(profile.get('api_key_env', 'PERPLEXITY_API_KEY'))}",
+            "Content-Type": "application/json",
+        },
+        payload=payload,
+        timeout_s=timeout_s,
+    )
+    if not isinstance(data, dict):
+        raise AdapterFailure(kind="corrupted_capture", message="Agent response must be an object", http_status=status, response_body=raw)
+    if data.get("error"):
+        raise AdapterFailure(kind="provider_error", message="Perplexity Agent error response", http_status=status, response_body=raw)
+    if data.get("status") != "completed":
+        raise AdapterFailure(kind="incomplete_generation", message="Perplexity Agent response was not completed", http_status=status, response_body=raw)
+    if data.get("model") != model_id:
+        raise AdapterFailure(kind="request_environment_mismatch", message="Agent returned model does not match the frozen ID", http_status=status, response_body=raw)
+    output = data.get("output")
+    usage = data.get("usage") or {}
+    if not isinstance(output, list) or not isinstance(usage, dict):
+        raise AdapterFailure(kind="corrupted_capture", message="Agent output/usage metadata is malformed", http_status=status, response_body=raw)
+    cost = usage.get("cost") or {}
+    if not isinstance(cost, dict):
+        raise AdapterFailure(kind="corrupted_capture", message="Agent cost metadata is malformed", http_status=status, response_body=raw)
+    environment_mismatch = (
+        data.get("tools") not in (None, [])
+        or data.get("store") not in (None, False)
+        or bool(data.get("previous_response_id"))
+        or bool(usage.get("tool_calls_details"))
+        or bool(cost.get("tool_calls_cost_details"))
+        or cost.get("tool_calls_cost") not in (None, 0)
+        or any(not isinstance(item, dict) or item.get("type") not in {"message", "reasoning"} for item in output)
+    )
+    if environment_mismatch:
+        # Preserve the raw response, and do not retry a different environment.
+        raise AdapterFailure(kind="request_environment_mismatch", message="Agent response reports tools, history, or enabled storage", http_status=status, response_body=raw)
+    return AdapterResult(
+        provider="Perplexity AI", requested_model=model_id, returned_model=data["model"],
+        request_payload=payload, response_json=data, raw_response_text=raw,
+        http_status=status, started_at_utc=started, completed_at_utc=completed,
+        duration_ms=duration, usage=data.get("usage"), output_text=_extract_openai_text(data),
+    )
+
+
 def call_provider(*, provider: str, model_id: str, prompt: str, profile: dict[str, Any], timeout_s: int = 180) -> AdapterResult:
     adapter = profile.get("adapter")
     expected = {
-        "OpenAI": "openai_responses",
-        "Anthropic": "anthropic_messages",
-        "Google": "gemini_generate_content",
-        "Perplexity": "perplexity_sonar",
-        "Perplexity AI": "perplexity_sonar",
+        "OpenAI": ("openai_responses",),
+        "Anthropic": ("anthropic_messages",),
+        "Google": ("gemini_generate_content",),
+        "Perplexity": ("perplexity_sonar", "perplexity_agent"),
+        "Perplexity AI": ("perplexity_sonar", "perplexity_agent"),
     }.get(provider)
     if expected is None:
         raise ValueError(f"no API adapter is registered for provider {provider}")
-    if adapter != expected:
+    if adapter not in expected:
         raise ValueError(f"provider {provider} requires adapter {expected}, got {adapter!r}")
     if provider == "OpenAI":
         return call_openai(model_id=model_id, prompt=prompt, profile=profile, timeout_s=timeout_s)
@@ -299,4 +382,6 @@ def call_provider(*, provider: str, model_id: str, prompt: str, profile: dict[st
         return call_anthropic(model_id=model_id, prompt=prompt, profile=profile, timeout_s=timeout_s)
     if provider == "Google":
         return call_gemini(model_id=model_id, prompt=prompt, profile=profile, timeout_s=timeout_s)
+    if adapter == "perplexity_agent":
+        return call_perplexity_agent(model_id=model_id, prompt=prompt, profile=profile, timeout_s=timeout_s)
     return call_perplexity(model_id=model_id, prompt=prompt, profile=profile, timeout_s=timeout_s)
