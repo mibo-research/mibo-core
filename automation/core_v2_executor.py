@@ -52,7 +52,7 @@ def load_authorization(path: Path, *, protocol_path: Path, manifest_path: Path,
             raise ValueError(f"Core v2 authorization gate {field} is not true")
     if not data.get("operations_lead") or not data.get("authorized_at_utc"):
         raise ValueError("Core v2 authorization requires operations_lead and authorized_at_utc")
-    if version == runner.AGENT_PROTOCOL_VERSION:
+    if version in runner.AGENT_PROTOCOL_VERSIONS:
         for field in ("prospective_agent_amendment_reviewed", "late_activation_with_original_windows_approved"):
             if data.get(field) is not True:
                 raise ValueError(f"Core v2 authorization gate {field} is not true")
@@ -68,6 +68,11 @@ def load_authorization(path: Path, *, protocol_path: Path, manifest_path: Path,
     for field, expected in expected_hashes.items():
         if data.get(field) != expected:
             raise ValueError(f"Core v2 authorization {field} mismatch")
+    if version == runner.ADMISSION_PROTOCOL_VERSION:
+        import core_v2_admission as admission
+        admission.validate_authorization(data, protocol_path=protocol_path,
+            freeze_path=freeze_path, protocol=protocol,
+            freeze=json.loads(freeze_path.read_text()))
     return data
 
 
@@ -98,6 +103,8 @@ def preflight(*, protocol_path: Path, manifest_path: Path, freeze_path: Path,
         manifest_path=manifest_path, freeze_path=freeze_path,
         protocol=protocol, wave_id=wave_id, site_id=site_id,
     )
+    if protocol["protocol_version"] == runner.ADMISSION_PROTOCOL_VERSION:
+        rows = [r for r in rows if r["service_lineage_id"] in authorization["admitted_lineages"]]
     if require_credentials:
         _validate_credentials(rows, freeze)
     wave_cfg = runner.wave(protocol, wave_id)
@@ -107,13 +114,17 @@ def preflight(*, protocol_path: Path, manifest_path: Path, freeze_path: Path,
     if not (start <= current < close):
         raise ValueError("current time is outside the prospectively registered Core v2 field window")
     version = protocol["protocol_version"]
-    if version == runner.AGENT_PROTOCOL_VERSION:
+    if version in runner.AGENT_PROTOCOL_VERSIONS:
         if current < runner.parse_aware_utc(authorization["authorized_at_utc"]):
             raise ValueError("Agent execution cannot precede human authorization")
-        legacy_root = archive.wave_root(data_root, site_id, wave_id)
-        if any(next((legacy_root / folder).glob("*.json"), None) is not None
-               for folder in ("api_raw", "failures")):
-            raise ValueError("original v2.0 wave already has retained attempts; no mid-wave amendment")
+        prior_versions = [runner.PROTOCOL_VERSION]
+        if version == runner.ADMISSION_PROTOCOL_VERSION:
+            prior_versions.append(runner.AGENT_PROTOCOL_VERSION)
+        for prior in prior_versions:
+            legacy_root = archive.wave_root(data_root, site_id, wave_id, prior)
+            if any(next((legacy_root / folder).glob("*.json"), None) is not None
+                   for folder in ("api_raw", "failures")):
+                raise ValueError("prior wave already has retained attempts; no mid-wave amendment")
     root = archive.wave_root(data_root, site_id, wave_id, version)
     root.mkdir(parents=True, exist_ok=True)
     probe = root / ".write-test"
@@ -224,6 +235,21 @@ def execute(*, protocol_path: Path, manifest_path: Path, freeze_path: Path,
         freeze_path=freeze_path, authorization_path=authorization_path,
         data_root=data_root, require_credentials=True,
     )
+    if rows[0]["protocol_version"] == runner.ADMISSION_PROTOCOL_VERSION:
+        digest = sha256_file(authorization_path)
+        record_path = archive.wave_root(data_root, rows[0]["site_id"], rows[0]["wave_id"], rows[0]["protocol_version"]) / "deviations" / ("ADMISSION-" + digest + ".json")
+        if not record_path.exists():
+            archive.write_deviation(data_root=data_root, site_id=rows[0]["site_id"],
+                wave_id=rows[0]["wave_id"], protocol_version=rows[0]["protocol_version"],
+                deviation_id="ADMISSION-" + digest, record={
+                    "type": "human_authorized_lineage_admission",
+                    "admitted_lineages": _auth["admitted_lineages"],
+                    "authorization_sha256": digest,
+                    "authorized_at_utc": _auth["authorized_at_utc"],
+                    "executor_activated_at_utc": datetime.now(timezone.utc).isoformat(),
+                    "intended_manifest_rows": len(runner.read_csv(manifest_path)),
+                    "authorized_manifest_rows": len(rows),
+                    "readiness_report_sha256": _auth["readiness_report_sha256"]})
     prompts = _prompt_map()
     done = _processed_attempt_ids(data_root, rows[0]["site_id"], rows[0]["wave_id"], rows[0]["protocol_version"])
     protocol, _ = runner.load_protocol(protocol_path)
@@ -277,6 +303,16 @@ def execute(*, protocol_path: Path, manifest_path: Path, freeze_path: Path,
                 summary["failed_attempts"] += 1
                 continue
         cfg = freeze["core_api"][lineage]
+        if row["protocol_version"] == runner.ADMISSION_PROTOCOL_VERSION:
+            dispatch = archive.wave_root(data_root, row["site_id"], row["wave_id"], row["protocol_version"]) / "metadata" / ("first-dispatch-" + lineage + ".json")
+            if not dispatch.exists():
+                archive._write_exclusive(dispatch, archive.canonical_json_bytes({
+                    "protocol_version": row["protocol_version"],
+                    "service_lineage_id": lineage,
+                    "initial_attempt_id": row["attempt_id"],
+                    "actual_observation_start_at_utc": datetime.now(timezone.utc).isoformat(),
+                    "timestamp_kind": "collector_dispatch_to_provider_adapter",
+                    "authorization_sha256": sha256_file(authorization_path)}))
         try:
             result = call_provider(
                 provider=row["provider"], model_id=row["model_id"],

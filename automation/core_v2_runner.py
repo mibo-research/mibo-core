@@ -19,7 +19,9 @@ import mibo_runner as v1
 
 PROTOCOL_VERSION = "2.0"
 AGENT_PROTOCOL_VERSION = "2.0.1"
-SUPPORTED_PROTOCOL_VERSIONS = {PROTOCOL_VERSION, AGENT_PROTOCOL_VERSION}
+ADMISSION_PROTOCOL_VERSION = "2.0.2"
+AGENT_PROTOCOL_VERSIONS = {AGENT_PROTOCOL_VERSION, ADMISSION_PROTOCOL_VERSION}
+SUPPORTED_PROTOCOL_VERSIONS = {PROTOCOL_VERSION, *AGENT_PROTOCOL_VERSIONS}
 PRIOR_REGISTRATION = "10.5281/zenodo.22264635"
 AGENT_CONTRACT = "direct-model-no-tools-v1"
 SCIENTIFIC_CLASS = "confirmatory_primary"
@@ -88,7 +90,7 @@ def load_protocol(path: Path, *, require_final: bool = True) -> tuple[dict[str, 
         reg = data.get("protocol_registration_id")
         if not isinstance(reg, str) or not reg.strip() or reg.startswith("REPLACE_"):
             raise ValueError("Core v2 protocol registration ID is not finalized")
-    if version == AGENT_PROTOCOL_VERSION:
+    if version in AGENT_PROTOCOL_VERSIONS:
         if data.get("prior_protocol_registration_id") != PRIOR_REGISTRATION:
             raise ValueError("Agent amendment must identify the preserved v2.0 registration")
         if data.get("perplexity_transport_contract") != AGENT_CONTRACT:
@@ -102,6 +104,11 @@ def load_protocol(path: Path, *, require_final: bool = True) -> tuple[dict[str, 
             if data.get("protocol_registration_id") == PRIOR_REGISTRATION:
                 raise ValueError("Agent amendment requires its own public registration identifier")
             parse_aware_utc(data.get("prospectively_registered_at_utc"))
+    if version == ADMISSION_PROTOCOL_VERSION:
+        if data.get("lineage_admission_policy") != "human-authorized-ready-lineages-original-windows-v1":
+            raise ValueError("lineage admission policy mismatch")
+        if data.get("prior_agent_amendment_registration_id") != "https://github.com/mibo-research/mibo-core/blob/3045cbacaa15d19699deb8e79d1c7465b7d2f343/docs/v2.0.1/AMENDMENT_v2.0.1.md":
+            raise ValueError("prior Agent amendment registration mismatch")
     waves = data.get("waves")
     if not isinstance(waves, list) or len(waves) != 12:
         raise ValueError("Core v2 protocol requires exactly twelve waves")
@@ -167,7 +174,7 @@ def load_freeze(path: Path, *, protocol: dict[str, Any], wave_id: str,
         raise ValueError("Core v2 provider freeze surface/environment mismatch")
     if not data.get("frozen_at_utc"):
         raise ValueError("Core v2 provider freeze is not finalized")
-    if version == AGENT_PROTOCOL_VERSION:
+    if version in AGENT_PROTOCOL_VERSIONS:
         if parse_aware_utc(data["frozen_at_utc"]) < parse_aware_utc(protocol["prospectively_registered_at_utc"]):
             raise ValueError("Agent freeze must follow prospective amendment registration")
     entries = data.get("core_api")
@@ -191,7 +198,7 @@ def load_freeze(path: Path, *, protocol: dict[str, Any], wave_id: str,
         if not isinstance(profile, dict):
             raise ValueError(f"{sid} request_profile must be an object")
         expected_adapter = EXPECTED_ADAPTER[service["provider"]]
-        if version == AGENT_PROTOCOL_VERSION and service["provider"] == "Perplexity AI":
+        if version in AGENT_PROTOCOL_VERSIONS and service["provider"] == "Perplexity AI":
             expected_adapter = "perplexity_agent"
         if profile.get("adapter") != expected_adapter:
             raise ValueError(f"{sid} request_profile adapter mismatch")
