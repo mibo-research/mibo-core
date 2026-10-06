@@ -20,18 +20,23 @@ def _write_exclusive(path: Path, data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
 
 
-def wave_root(data_root: Path, site_id: str, wave_id: str) -> Path:
-    return data_root / "v2.0" / site_id / wave_id
+def wave_root(data_root: Path, site_id: str, wave_id: str,
+              protocol_version: str = PROTOCOL_VERSION) -> Path:
+    if protocol_version not in {"2.0", "2.0.1", "2.0.2", "2.0.3", "2.0.4"}:
+        raise ValueError("unsupported Core archive protocol version")
+    return data_root / f"v{protocol_version}" / site_id / wave_id
 
 
 def archive_success(*, data_root: Path, row: dict[str, Any], request_payload: dict[str, Any],
                     response_json: dict[str, Any], raw_response_text: str, http_status: int,
                     returned_model: str | None, usage: Any, started_at_utc: str,
-                    completed_at_utc: str, duration_ms: int) -> dict[str, Any]:
-    root = wave_root(data_root, row["site_id"], row["wave_id"])
+                    completed_at_utc: str, duration_ms: int,
+                    response_metadata: dict[str, Any] | None = None) -> dict[str, Any]:
+    version = row["protocol_version"]
+    root = wave_root(data_root, row["site_id"], row["wave_id"], version)
     observation_id = row["attempt_id"]
     envelope = {
-        "protocol_version": PROTOCOL_VERSION,
+        "protocol_version": version,
         "protocol_registration_id": row["protocol_registration_id"],
         "scientific_class": SCIENTIFIC_CLASS,
         "observation_surface": "provider_api",
@@ -56,10 +61,12 @@ def archive_success(*, data_root: Path, row: dict[str, Any], request_payload: di
         "usage": usage, "started_at_utc": started_at_utc,
         "completed_at_utc": completed_at_utc, "duration_ms": duration_ms,
     }
+    if response_metadata is not None:
+        envelope["response_metadata"] = response_metadata
     raw_path = root / "api_raw" / f"{observation_id}.json"
     raw_hash = _write_exclusive(raw_path, canonical_json_bytes(envelope))
     metadata = {
-        "protocol_version": PROTOCOL_VERSION,
+        "protocol_version": version,
         "scientific_class": SCIENTIFIC_CLASS,
         "observation_id": observation_id,
         "attempt_id": row["attempt_id"],
@@ -69,6 +76,12 @@ def archive_success(*, data_root: Path, row: dict[str, Any], request_payload: di
         "captured_at_utc": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
         "status": "valid_confirmatory_api_capture",
     }
+    if version in {"2.0.2", "2.0.3", "2.0.4"}:
+        metadata.update(service_lineage_id=row["service_lineage_id"],
+            window_id=row["window_id"], started_at_utc=started_at_utc,
+            completed_at_utc=completed_at_utc)
+    if response_metadata is not None:
+        metadata["response_metadata"] = response_metadata
     meta_path = root / "metadata" / f"{observation_id}.json"
     meta_hash = _write_exclusive(meta_path, canonical_json_bytes(metadata))
     return {**metadata, "metadata_file_sha256": meta_hash}
@@ -77,10 +90,12 @@ def archive_success(*, data_root: Path, row: dict[str, Any], request_payload: di
 def archive_failure(*, data_root: Path, row: dict[str, Any], failure_kind: str,
                     message: str, failed_at_utc: str, http_status: int | None = None,
                     retry_after_seconds: int | None = None,
-                    response_body: str | None = None) -> dict[str, Any]:
-    root = wave_root(data_root, row["site_id"], row["wave_id"])
+                    response_body: str | None = None,
+                    response_metadata: dict[str, Any] | None = None) -> dict[str, Any]:
+    version = row["protocol_version"]
+    root = wave_root(data_root, row["site_id"], row["wave_id"], version)
     record = {
-        "protocol_version": PROTOCOL_VERSION, "scientific_class": SCIENTIFIC_CLASS,
+        "protocol_version": version, "scientific_class": SCIENTIFIC_CLASS,
         "attempt_id": row["attempt_id"], "retry_of_attempt_id": row.get("retry_of_attempt_id"),
         "protocol_registration_id": row["protocol_registration_id"],
         "wave_id": row["wave_id"], "site_id": row["site_id"],
@@ -93,6 +108,8 @@ def archive_failure(*, data_root: Path, row: dict[str, Any], failure_kind: str,
         "retry_after_seconds": retry_after_seconds,
         "provider_response_body": response_body, "failed_at_utc": failed_at_utc,
     }
+    if response_metadata is not None:
+        record["response_metadata"] = response_metadata
     path = root / "failures" / f"{row['attempt_id']}.json"
     digest = _write_exclusive(path, canonical_json_bytes(record))
     return {"failure_file": str(path.relative_to(root)), "failure_file_sha256": digest}
@@ -100,10 +117,11 @@ def archive_failure(*, data_root: Path, row: dict[str, Any], failure_kind: str,
 
 def archive_retry_link(*, data_root: Path, original_attempt_id: str,
                        retry_attempt_id: str, site_id: str, wave_id: str,
-                       due_at_utc: str, failure_kind: str) -> dict[str, Any]:
-    root = wave_root(data_root, site_id, wave_id)
+                       due_at_utc: str, failure_kind: str,
+                       protocol_version: str = PROTOCOL_VERSION) -> dict[str, Any]:
+    root = wave_root(data_root, site_id, wave_id, protocol_version)
     record = {
-        "protocol_version": PROTOCOL_VERSION, "scientific_class": SCIENTIFIC_CLASS,
+        "protocol_version": protocol_version, "scientific_class": SCIENTIFIC_CLASS,
         "original_attempt_id": original_attempt_id, "retry_attempt_id": retry_attempt_id,
         "due_at_utc": due_at_utc, "failure_kind": failure_kind,
         "link_type": "technical_retry",
@@ -114,10 +132,11 @@ def archive_retry_link(*, data_root: Path, original_attempt_id: str,
 
 
 def write_deviation(*, data_root: Path, site_id: str, wave_id: str,
-                    deviation_id: str, record: dict[str, Any]) -> str:
-    path = wave_root(data_root, site_id, wave_id) / "deviations" / f"{deviation_id}.json"
+                    deviation_id: str, record: dict[str, Any],
+                    protocol_version: str = PROTOCOL_VERSION) -> str:
+    path = wave_root(data_root, site_id, wave_id, protocol_version) / "deviations" / f"{deviation_id}.json"
     return _write_exclusive(path, canonical_json_bytes({
-        "protocol_version": PROTOCOL_VERSION,
-        "scientific_class": SCIENTIFIC_CLASS,
         **record,
+        "protocol_version": protocol_version,
+        "scientific_class": SCIENTIFIC_CLASS,
     }))

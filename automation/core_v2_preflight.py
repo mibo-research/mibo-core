@@ -120,9 +120,26 @@ def run_preflight(*, protocol_path: Path, freeze_path: Path, out_dir: Path,
                 )
             except AdapterFailure as exc:
                 errors.append(f"{label} Core v2 smoke failed for {model_id}: {exc.kind}")
+                failure = {
+                    "protocol_version": protocol["protocol_version"],
+                    "readiness_only": True, "provider": label, "model_id": model_id,
+                    "failure_kind": exc.kind, "http_status": exc.http_status,
+                    "recorded_at_utc": api.utc_now(),
+                    "retry_after_seconds": exc.retry_after_seconds,
+                    "response_body": exc.response_body,
+                    "registered_mibo_prompt_used": False,
+                }
+                if isinstance(failure["response_body"], str):
+                    for entry in freeze["core_api"].values():
+                        key = os.environ.get(entry["request_profile"]["api_key_env"])
+                        if key:
+                            failure["response_body"] = failure["response_body"].replace(key, "[REDACTED]")
+                path = out_dir / "smoke_failures" / f"{_safe_name(label)}.json"
                 smoke_checks.append({
                     "service_lineage_id": sid, "provider": label, "model_id": model_id,
                     "pass": False, "failure_kind": exc.kind, "http_status": exc.http_status,
+                    "file": str(path.relative_to(out_dir)),
+                    "sha256": _write_exclusive(path, failure),
                 })
             else:
                 returned_model_matches = result.returned_model == model_id
@@ -131,7 +148,7 @@ def run_preflight(*, protocol_path: Path, freeze_path: Path, out_dir: Path,
                     check["exact_metadata_verified"] = True
                     check["verification_method"] = "synthetic_smoke_returned_model"
                 record = {
-                    "protocol_version": runner.PROTOCOL_VERSION,
+                    "protocol_version": protocol["protocol_version"],
                     "scientific_class": runner.SCIENTIFIC_CLASS,
                     "readiness_only": True, "service_lineage_id": sid,
                     "provider": label, "requested_model": model_id,
@@ -160,8 +177,8 @@ def run_preflight(*, protocol_path: Path, freeze_path: Path, out_dir: Path,
         if not verified:
             errors.append(f"{label} Core v2 model was not verified: {model_id}")
     report = {
-        "schema_version": runner.PROTOCOL_VERSION,
-        "protocol_version": runner.PROTOCOL_VERSION,
+        "schema_version": protocol["protocol_version"],
+        "protocol_version": protocol["protocol_version"],
         "protocol_registration_id": protocol["protocol_registration_id"],
         "protocol_file_sha256": protocol_sha,
         "scientific_class": runner.SCIENTIFIC_CLASS,
