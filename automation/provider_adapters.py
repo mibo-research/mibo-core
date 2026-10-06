@@ -39,6 +39,7 @@ class AdapterFailure(Exception):
     http_status: int | None = None
     retry_after_seconds: int | None = None
     response_body: str | None = None
+    response_metadata: dict[str, Any] | None = None
 
     @property
     def retry_eligible(self) -> bool:
@@ -59,6 +60,7 @@ class AdapterResult:
     duration_ms: int
     usage: Any
     output_text: str
+    response_metadata: dict[str, Any] | None = None
 
 
 def _utc_now() -> str:
@@ -75,7 +77,8 @@ def _retry_after(headers: Any) -> int | None:
         return None
 
 
-def _post_json(*, url: str, headers: dict[str, str], payload: dict[str, Any], timeout_s: int) -> tuple[int, str, dict[str, Any], int, str, str]:
+def _post_json(*, url: str, headers: dict[str, str], payload: dict[str, Any], timeout_s: int,
+               response_metadata: dict[str, Any] | None = None) -> tuple[int, str, dict[str, Any], int, str, str]:
     body = json.dumps(payload, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
     req = Request(url, data=body, headers=headers, method="POST")
     started = _utc_now()
@@ -84,9 +87,17 @@ def _post_json(*, url: str, headers: dict[str, str], payload: dict[str, Any], ti
         with urlopen(req, timeout=timeout_s) as response:
             status = int(response.status)
             raw = response.read().decode("utf-8", errors="replace")
+            if response_metadata is not None:
+                tier = response.headers.get("x-gemini-service-tier")
+                response_metadata["service_tier_actual"] = tier
+                response_metadata["response_headers"] = {"x-gemini-service-tier": tier} if tier else {}
     except HTTPError as exc:
         raw = exc.read().decode("utf-8", errors="replace")
         status = int(exc.code)
+        if response_metadata is not None:
+            tier = exc.headers.get("x-gemini-service-tier")
+            response_metadata["service_tier_actual"] = tier
+            response_metadata["response_headers"] = {"x-gemini-service-tier": tier} if tier else {}
         kind = "rate_limit" if status == 429 else (
             "authentication_interruption" if status in {401, 403} else "provider_error"
         )
@@ -96,11 +107,12 @@ def _post_json(*, url: str, headers: dict[str, str], payload: dict[str, Any], ti
             http_status=status,
             retry_after_seconds=_retry_after(exc.headers),
             response_body=raw,
+            response_metadata=response_metadata,
         ) from exc
     except (TimeoutError, socket.timeout) as exc:
-        raise AdapterFailure(kind="timeout", message=str(exc) or "request timed out") from exc
+        raise AdapterFailure(kind="timeout", message=str(exc) or "request timed out", response_metadata=response_metadata) from exc
     except URLError as exc:
-        raise AdapterFailure(kind="submission_failure", message=str(exc.reason)) from exc
+        raise AdapterFailure(kind="submission_failure", message=str(exc.reason), response_metadata=response_metadata) from exc
     completed = _utc_now()
     duration_ms = int((time.monotonic() - t0) * 1000)
     try:
@@ -111,6 +123,7 @@ def _post_json(*, url: str, headers: dict[str, str], payload: dict[str, Any], ti
             message="provider returned non-JSON response",
             http_status=status,
             response_body=raw,
+            response_metadata=response_metadata,
         ) from exc
     return status, raw, parsed, duration_ms, started, completed
 
@@ -212,6 +225,15 @@ def call_gemini(*, model_id: str, prompt: str, profile: dict[str, Any], timeout_
     base = profile.get("endpoint_base", "https://generativelanguage.googleapis.com/v1beta/models")
     endpoint = f"{base.rstrip('/')}/{quote(model_id, safe='')}:generateContent"
     payload: dict[str, Any] = {"contents": [{"role": "user", "parts": [{"text": prompt}]}]}
+    tier = profile.get("service_tier")
+    if tier is not None and tier != "priority":
+        raise ValueError("only the prospectively selected Gemini Priority tier is supported")
+    metadata = None
+    optional = {}
+    if tier == "priority":
+        payload["service_tier"] = "priority"
+        metadata = {"service_tier_requested": "priority", "service_tier_actual": None}
+        optional["response_metadata"] = metadata
     generation: dict[str, Any] = {}
     for src, dst in (("max_output_tokens", "maxOutputTokens"), ("temperature", "temperature"), ("top_p", "topP")):
         if profile.get(src) is not None:
@@ -226,14 +248,28 @@ def call_gemini(*, model_id: str, prompt: str, profile: dict[str, Any], timeout_
         },
         payload=payload,
         timeout_s=timeout_s,
+        **optional,
     )
     if data.get("error"):
-        raise AdapterFailure(kind="provider_error", message="Gemini error response", http_status=status, response_body=raw)
+        raise AdapterFailure(kind="provider_error", message="Gemini error response", http_status=status,
+                             response_body=raw, response_metadata=metadata)
+    if metadata is not None:
+        model_version = data.get("modelVersion")
+        metadata["provider_model_version"] = model_version
+        if isinstance(model_version, str):
+            normalized = model_version.removeprefix("models/")
+            if normalized != model_id and not normalized.startswith(model_id + "-"):
+                raise AdapterFailure(kind="request_environment_mismatch", message="Gemini returned another model version",
+                    http_status=status, response_body=raw, response_metadata=metadata)
+        metadata.update(provider_model_version=data.get("modelVersion"),
+            provider_downgraded_to_standard=metadata.get("service_tier_actual") == "standard",
+            service_tier_unknown=metadata.get("service_tier_actual") not in {"priority", "standard"})
     return AdapterResult(
         provider="Google", requested_model=model_id, returned_model=model_id,
         request_payload=payload, response_json=data, raw_response_text=raw,
         http_status=status, started_at_utc=started, completed_at_utc=completed,
         duration_ms=duration, usage=data.get("usageMetadata"), output_text=_extract_gemini_text(data),
+        response_metadata=metadata,
     )
 
 

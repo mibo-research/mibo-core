@@ -30,6 +30,10 @@ def checked(path: Path, expected: str) -> dict:
 
 def validate_report(path: Path, *, protocol: dict, protocol_sha: str,
                     freeze: dict, freeze_sha: str, admitted: list[str]) -> dict:
+    if protocol["protocol_version"] == runner.PRIORITY_PROTOCOL_VERSION:
+        import core_v2_priority
+        return core_v2_priority.validate_report(path, protocol=protocol, protocol_sha=protocol_sha,
+            freeze=freeze, freeze_sha=freeze_sha, admitted=admitted)
     admitted = scope(admitted)
     report = json.loads(path.read_text())
     expected = {"protocol_version": VERSION,
@@ -100,6 +104,9 @@ def validate_report(path: Path, *, protocol: dict, protocol_sha: str,
 def validate_authorization(auth: dict, *, protocol_path: Path, freeze_path: Path,
                            protocol: dict, freeze: dict) -> list[str]:
     admitted = scope(auth.get("admitted_lineages"))
+    if protocol["protocol_version"] == runner.PRIORITY_PROTOCOL_VERSION:
+        if admitted != GOOGLE_SCOPE or auth.get("prospective_gemini_priority_amendment_reviewed") is not True:
+            raise ValueError("Google Priority human amendment authorization is missing")
     if auth.get("prospective_lineage_admission_amendment_reviewed") is not True:
         raise ValueError("lineage admission amendment not human reviewed")
     if auth.get("admission_policy") != POLICY:

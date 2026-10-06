@@ -180,6 +180,8 @@ def authorize_and_start(*, out_dir: Path, built: dict, data_root: Path, values: 
         late_activation_with_original_windows_approved=True,
         prospective_lineage_admission_amendment_reviewed=True,
         explicit_human_phrase=phrase)
+    if auth["protocol_version"] == runner.PRIORITY_PROTOCOL_VERSION:
+        auth["prospective_gemini_priority_amendment_reviewed"] = True
     write(authorization_path, auth)
     protocol = base / built["protocol_file"]
     freeze = base / built["provider_freeze_file"]
@@ -190,7 +192,8 @@ def authorize_and_start(*, out_dir: Path, built: dict, data_root: Path, values: 
     # Root's dry preflight creates the new namespace. The service runs as mibo.
     import pwd
     user = pwd.getpwnam("mibo")
-    for path in (data_root / "v2.0.2", data_root / "v2.0.2/JP01", data_root / "v2.0.2/JP01/MIBO2-W01"):
+    namespace = "v" + auth["protocol_version"]
+    for path in (data_root / namespace, data_root / namespace / "JP01", data_root / namespace / "JP01/MIBO2-W01"):
         os.chown(path, user.pw_uid, user.pw_gid)
         path.chmod(0o750)
     paths = [SOURCE, out_dir, data_root]
@@ -213,7 +216,7 @@ def authorize_and_start(*, out_dir: Path, built: dict, data_root: Path, values: 
     if unit_path.exists():
         raise ValueError("scoped service already exists; do not overwrite")
     command = f"/usr/bin/python3 -B {SOURCE}/automation/core_v2_waiter.py --protocol {protocol} --wave MIBO2-W01 --manifest {manifest} --freeze {freeze} --authorization {authorization_path} --data-root {data_root}"
-    unit = f"[Unit]\nDescription=MIBO Core v2.0.2 authorized scope\nAfter=network-online.target time-sync.target\nWants=network-online.target time-sync.target\n[Service]\nType=simple\nUser=mibo\nGroup=mibo\nWorkingDirectory={SOURCE}\nEnvironmentFile={env_path}\nExecStart={command}\nRestart=no\nTimeoutStartSec=infinity\nNoNewPrivileges=true\nPrivateTmp=true\nProtectSystem=strict\nProtectHome=true\nReadWritePaths={data_root} /srv/mibo-private\nUMask=0077\n[Install]\nWantedBy=multi-user.target\n"
+    unit = f"[Unit]\nDescription=MIBO Core authorized scope\nAfter=network-online.target time-sync.target\nWants=network-online.target time-sync.target\n[Service]\nType=simple\nUser=mibo\nGroup=mibo\nWorkingDirectory={SOURCE}\nEnvironmentFile={env_path}\nExecStart={command}\nRestart=no\nTimeoutStartSec=infinity\nNoNewPrivileges=true\nPrivateTmp=true\nProtectSystem=strict\nProtectHome=true\nReadWritePaths={data_root} /srv/mibo-private\nUMask=0077\n[Install]\nWantedBy=multi-user.target\n"
     # Preserve the exact new service definition alongside the private hashes.
     with (out_dir / service).open("x") as fh:
         fh.write(unit)

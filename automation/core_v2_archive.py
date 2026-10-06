@@ -22,7 +22,7 @@ def _write_exclusive(path: Path, data: bytes) -> str:
 
 def wave_root(data_root: Path, site_id: str, wave_id: str,
               protocol_version: str = PROTOCOL_VERSION) -> Path:
-    if protocol_version not in {"2.0", "2.0.1", "2.0.2"}:
+    if protocol_version not in {"2.0", "2.0.1", "2.0.2", "2.0.3"}:
         raise ValueError("unsupported Core archive protocol version")
     return data_root / f"v{protocol_version}" / site_id / wave_id
 
@@ -30,7 +30,8 @@ def wave_root(data_root: Path, site_id: str, wave_id: str,
 def archive_success(*, data_root: Path, row: dict[str, Any], request_payload: dict[str, Any],
                     response_json: dict[str, Any], raw_response_text: str, http_status: int,
                     returned_model: str | None, usage: Any, started_at_utc: str,
-                    completed_at_utc: str, duration_ms: int) -> dict[str, Any]:
+                    completed_at_utc: str, duration_ms: int,
+                    response_metadata: dict[str, Any] | None = None) -> dict[str, Any]:
     version = row["protocol_version"]
     root = wave_root(data_root, row["site_id"], row["wave_id"], version)
     observation_id = row["attempt_id"]
@@ -60,6 +61,8 @@ def archive_success(*, data_root: Path, row: dict[str, Any], request_payload: di
         "usage": usage, "started_at_utc": started_at_utc,
         "completed_at_utc": completed_at_utc, "duration_ms": duration_ms,
     }
+    if response_metadata is not None:
+        envelope["response_metadata"] = response_metadata
     raw_path = root / "api_raw" / f"{observation_id}.json"
     raw_hash = _write_exclusive(raw_path, canonical_json_bytes(envelope))
     metadata = {
@@ -73,10 +76,12 @@ def archive_success(*, data_root: Path, row: dict[str, Any], request_payload: di
         "captured_at_utc": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
         "status": "valid_confirmatory_api_capture",
     }
-    if version == "2.0.2":
+    if version in {"2.0.2", "2.0.3"}:
         metadata.update(service_lineage_id=row["service_lineage_id"],
             window_id=row["window_id"], started_at_utc=started_at_utc,
             completed_at_utc=completed_at_utc)
+    if response_metadata is not None:
+        metadata["response_metadata"] = response_metadata
     meta_path = root / "metadata" / f"{observation_id}.json"
     meta_hash = _write_exclusive(meta_path, canonical_json_bytes(metadata))
     return {**metadata, "metadata_file_sha256": meta_hash}
@@ -85,7 +90,8 @@ def archive_success(*, data_root: Path, row: dict[str, Any], request_payload: di
 def archive_failure(*, data_root: Path, row: dict[str, Any], failure_kind: str,
                     message: str, failed_at_utc: str, http_status: int | None = None,
                     retry_after_seconds: int | None = None,
-                    response_body: str | None = None) -> dict[str, Any]:
+                    response_body: str | None = None,
+                    response_metadata: dict[str, Any] | None = None) -> dict[str, Any]:
     version = row["protocol_version"]
     root = wave_root(data_root, row["site_id"], row["wave_id"], version)
     record = {
@@ -102,6 +108,8 @@ def archive_failure(*, data_root: Path, row: dict[str, Any], failure_kind: str,
         "retry_after_seconds": retry_after_seconds,
         "provider_response_body": response_body, "failed_at_utc": failed_at_utc,
     }
+    if response_metadata is not None:
+        record["response_metadata"] = response_metadata
     path = root / "failures" / f"{row['attempt_id']}.json"
     digest = _write_exclusive(path, canonical_json_bytes(record))
     return {"failure_file": str(path.relative_to(root)), "failure_file_sha256": digest}

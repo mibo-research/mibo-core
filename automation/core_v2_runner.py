@@ -20,7 +20,9 @@ import mibo_runner as v1
 PROTOCOL_VERSION = "2.0"
 AGENT_PROTOCOL_VERSION = "2.0.1"
 ADMISSION_PROTOCOL_VERSION = "2.0.2"
-AGENT_PROTOCOL_VERSIONS = {AGENT_PROTOCOL_VERSION, ADMISSION_PROTOCOL_VERSION}
+PRIORITY_PROTOCOL_VERSION = "2.0.3"
+SCOPED_PROTOCOL_VERSIONS = {ADMISSION_PROTOCOL_VERSION, PRIORITY_PROTOCOL_VERSION}
+AGENT_PROTOCOL_VERSIONS = {AGENT_PROTOCOL_VERSION, *SCOPED_PROTOCOL_VERSIONS}
 SUPPORTED_PROTOCOL_VERSIONS = {PROTOCOL_VERSION, *AGENT_PROTOCOL_VERSIONS}
 PRIOR_REGISTRATION = "10.5281/zenodo.22264635"
 AGENT_CONTRACT = "direct-model-no-tools-v1"
@@ -104,11 +106,16 @@ def load_protocol(path: Path, *, require_final: bool = True) -> tuple[dict[str, 
             if data.get("protocol_registration_id") == PRIOR_REGISTRATION:
                 raise ValueError("Agent amendment requires its own public registration identifier")
             parse_aware_utc(data.get("prospectively_registered_at_utc"))
-    if version == ADMISSION_PROTOCOL_VERSION:
+    if version in SCOPED_PROTOCOL_VERSIONS:
         if data.get("lineage_admission_policy") != "human-authorized-ready-lineages-original-windows-v1":
             raise ValueError("lineage admission policy mismatch")
         if data.get("prior_agent_amendment_registration_id") != "https://github.com/mibo-research/mibo-core/blob/3045cbacaa15d19699deb8e79d1c7465b7d2f343/docs/v2.0.1/AMENDMENT_v2.0.1.md":
             raise ValueError("prior Agent amendment registration mismatch")
+    if version == PRIORITY_PROTOCOL_VERSION:
+        if data.get("gemini_priority_policy") != "request-priority-record-actual-allow-provider-standard":
+            raise ValueError("Gemini Priority policy mismatch")
+        if data.get("prior_lineage_amendment_registration_id") != "https://github.com/mibo-research/mibo-core/blob/71bd6cf4c3267ddf655eed21935837b19d54b030/docs/v2.0.2/AMENDMENT_v2.0.2.md":
+            raise ValueError("prior lineage amendment registration mismatch")
     waves = data.get("waves")
     if not isinstance(waves, list) or len(waves) != 12:
         raise ValueError("Core v2 protocol requires exactly twelve waves")
@@ -210,6 +217,14 @@ def load_freeze(path: Path, *, protocol: dict[str, Any], wave_id: str,
             raise ValueError(f"{sid} request_profile requires max_output_tokens")
         if service["provider"] == "Perplexity AI" and profile.get("disable_search") is not True:
             raise ValueError(f"{sid} Perplexity API-only Core requires disable_search=true")
+        if service["provider"] == "Google":
+            if version == PRIORITY_PROTOCOL_VERSION:
+                if profile.get("service_tier") != "priority":
+                    raise ValueError("Priority version requires an explicit Gemini Priority profile")
+            elif "service_tier" in profile:
+                raise ValueError("Priority profile requires its prospective protocol version")
+        elif "service_tier" in profile:
+            raise ValueError("Priority setting belongs only to Google")
         if expected_adapter == "perplexity_agent":
             allowed = {"adapter", "endpoint", "api_key_env", "max_output_tokens", "temperature", "top_p", "reasoning", "disable_search"}
             if set(profile) - allowed:

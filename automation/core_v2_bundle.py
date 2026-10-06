@@ -49,7 +49,7 @@ def build_bundle(*, protocol_path: Path, wave_id: str, site_id: str,
     if preflight.get("synthetic_smoke_requested") is not True:
         raise ValueError("Core v2 bundle requires a completed synthetic smoke preflight")
     smoke = preflight.get("synthetic_smoke_checks")
-    if protocol["protocol_version"] == runner.ADMISSION_PROTOCOL_VERSION:
+    if protocol["protocol_version"] in runner.SCOPED_PROTOCOL_VERSIONS:
         import core_v2_admission as admission
         admitted = admission.scope(preflight.get("admitted_lineages"))
         admission.validate_report(preflight_report_path, protocol=protocol, protocol_sha=protocol_sha,
@@ -95,7 +95,7 @@ def build_bundle(*, protocol_path: Path, wave_id: str, site_id: str,
         "provider_preflight_report_sha256": sha256_file(preflight_copy),
         "authorization_status": "NOT_AUTHORIZED_BY_BUNDLE_BUILDER",
     }
-    if protocol["protocol_version"] == runner.ADMISSION_PROTOCOL_VERSION:
+    if protocol["protocol_version"] in runner.SCOPED_PROTOCOL_VERSIONS:
         report.update(admitted_lineages=admitted,
             outside_this_authorization_lineages=[sid for sid in freeze["core_api"] if sid not in admitted],
             deferred_lineages=admission.GOOGLE_SCOPE if admitted == admission.INITIAL_SCOPE else [],
@@ -121,11 +121,13 @@ def build_bundle(*, protocol_path: Path, wave_id: str, site_id: str,
     if protocol["protocol_version"] in runner.AGENT_PROTOCOL_VERSIONS:
         authorization["prospective_agent_amendment_reviewed"] = False
         authorization["late_activation_with_original_windows_approved"] = False
-    if protocol["protocol_version"] == runner.ADMISSION_PROTOCOL_VERSION:
+    if protocol["protocol_version"] in runner.SCOPED_PROTOCOL_VERSIONS:
         authorization.update(admitted_lineages=admitted, admission_policy=admission.POLICY,
             prospective_lineage_admission_amendment_reviewed=False,
             readiness_report_file=str(preflight_copy.resolve()),
             readiness_report_sha256=sha256_file(preflight_copy))
+    if protocol["protocol_version"] == runner.PRIORITY_PROTOCOL_VERSION:
+        authorization["prospective_gemini_priority_amendment_reviewed"] = False
     _write_exclusive(
         out_dir / "core_v2_execution_authorization.template.json",
         canonical_json_bytes(authorization),

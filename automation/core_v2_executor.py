@@ -68,7 +68,7 @@ def load_authorization(path: Path, *, protocol_path: Path, manifest_path: Path,
     for field, expected in expected_hashes.items():
         if data.get(field) != expected:
             raise ValueError(f"Core v2 authorization {field} mismatch")
-    if version == runner.ADMISSION_PROTOCOL_VERSION:
+    if version in runner.SCOPED_PROTOCOL_VERSIONS:
         import core_v2_admission as admission
         admission.validate_authorization(data, protocol_path=protocol_path,
             freeze_path=freeze_path, protocol=protocol,
@@ -103,7 +103,7 @@ def preflight(*, protocol_path: Path, manifest_path: Path, freeze_path: Path,
         manifest_path=manifest_path, freeze_path=freeze_path,
         protocol=protocol, wave_id=wave_id, site_id=site_id,
     )
-    if protocol["protocol_version"] == runner.ADMISSION_PROTOCOL_VERSION:
+    if protocol["protocol_version"] in runner.SCOPED_PROTOCOL_VERSIONS:
         rows = [r for r in rows if r["service_lineage_id"] in authorization["admitted_lineages"]]
     if require_credentials:
         _validate_credentials(rows, freeze)
@@ -118,10 +118,14 @@ def preflight(*, protocol_path: Path, manifest_path: Path, freeze_path: Path,
         if current < runner.parse_aware_utc(authorization["authorized_at_utc"]):
             raise ValueError("Agent execution cannot precede human authorization")
         prior_versions = [runner.PROTOCOL_VERSION]
-        if version == runner.ADMISSION_PROTOCOL_VERSION:
+        if version in runner.SCOPED_PROTOCOL_VERSIONS:
             prior_versions.append(runner.AGENT_PROTOCOL_VERSION)
         for prior in prior_versions:
             legacy_root = archive.wave_root(data_root, site_id, wave_id, prior)
+            if version == runner.PRIORITY_PROTOCOL_VERSION:
+                import core_v2_priority
+                core_v2_priority.block_prior_google_attempts(data_root, site_id, wave_id)
+                break
             if any(next((legacy_root / folder).glob("*.json"), None) is not None
                    for folder in ("api_raw", "failures")):
                 raise ValueError("prior wave already has retained attempts; no mid-wave amendment")
@@ -235,7 +239,7 @@ def execute(*, protocol_path: Path, manifest_path: Path, freeze_path: Path,
         freeze_path=freeze_path, authorization_path=authorization_path,
         data_root=data_root, require_credentials=True,
     )
-    if rows[0]["protocol_version"] == runner.ADMISSION_PROTOCOL_VERSION:
+    if rows[0]["protocol_version"] in runner.SCOPED_PROTOCOL_VERSIONS:
         digest = sha256_file(authorization_path)
         record_path = archive.wave_root(data_root, rows[0]["site_id"], rows[0]["wave_id"], rows[0]["protocol_version"]) / "deviations" / ("ADMISSION-" + digest + ".json")
         if not record_path.exists():
@@ -303,7 +307,7 @@ def execute(*, protocol_path: Path, manifest_path: Path, freeze_path: Path,
                 summary["failed_attempts"] += 1
                 continue
         cfg = freeze["core_api"][lineage]
-        if row["protocol_version"] == runner.ADMISSION_PROTOCOL_VERSION:
+        if row["protocol_version"] in runner.SCOPED_PROTOCOL_VERSIONS:
             dispatch = archive.wave_root(data_root, row["site_id"], row["wave_id"], row["protocol_version"]) / "metadata" / ("first-dispatch-" + lineage + ".json")
             if not dispatch.exists():
                 archive._write_exclusive(dispatch, archive.canonical_json_bytes({
@@ -325,7 +329,7 @@ def execute(*, protocol_path: Path, manifest_path: Path, freeze_path: Path,
                 data_root=data_root, row=row, failure_kind=exc.kind,
                 message=exc.message, failed_at_utc=failed_at.isoformat().replace("+00:00", "Z"),
                 http_status=exc.http_status, retry_after_seconds=exc.retry_after_seconds,
-                response_body=exc.response_body,
+                response_body=exc.response_body, response_metadata=exc.response_metadata,
             )
             summary["failed_attempts"] += 1
             decision = decide_retry(
@@ -385,6 +389,7 @@ def execute(*, protocol_path: Path, manifest_path: Path, freeze_path: Path,
             http_status=result.http_status, returned_model=result.returned_model,
             usage=result.usage, started_at_utc=result.started_at_utc,
             completed_at_utc=result.completed_at_utc, duration_ms=result.duration_ms,
+            response_metadata=result.response_metadata,
         )
         summary["valid"] += 1
     return summary
