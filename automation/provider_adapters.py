@@ -221,7 +221,8 @@ def _extract_gemini_text(data: dict[str, Any]) -> str:
     return "\n".join(chunks)
 
 
-def call_gemini(*, model_id: str, prompt: str, profile: dict[str, Any], timeout_s: int = 180) -> AdapterResult:
+def call_gemini(*, model_id: str, prompt: str, profile: dict[str, Any], timeout_s: int = 180,
+                capture_response_metadata: bool = False) -> AdapterResult:
     base = profile.get("endpoint_base", "https://generativelanguage.googleapis.com/v1beta/models")
     endpoint = f"{base.rstrip('/')}/{quote(model_id, safe='')}:generateContent"
     payload: dict[str, Any] = {"contents": [{"role": "user", "parts": [{"text": prompt}]}]}
@@ -232,7 +233,9 @@ def call_gemini(*, model_id: str, prompt: str, profile: dict[str, Any], timeout_
     optional = {}
     if tier == "priority":
         payload["service_tier"] = "priority"
-        metadata = {"service_tier_requested": "priority", "service_tier_actual": None}
+    if tier == "priority" or capture_response_metadata:
+        metadata = {"service_tier_requested": "priority" if tier == "priority" else "standard_default",
+                    "service_tier_actual": None}
         optional["response_metadata"] = metadata
     generation: dict[str, Any] = {}
     for src, dst in (("max_output_tokens", "maxOutputTokens"), ("temperature", "temperature"), ("top_p", "topP")):
@@ -256,13 +259,16 @@ def call_gemini(*, model_id: str, prompt: str, profile: dict[str, Any], timeout_
     if metadata is not None:
         model_version = data.get("modelVersion")
         metadata["provider_model_version"] = model_version
-        if isinstance(model_version, str):
+        if model_version is not None:
+            if not isinstance(model_version, str):
+                raise AdapterFailure(kind="request_environment_mismatch", message="Gemini model version metadata is invalid",
+                    http_status=status, response_body=raw, response_metadata=metadata)
             normalized = model_version.removeprefix("models/")
             if normalized != model_id and not normalized.startswith(model_id + "-"):
                 raise AdapterFailure(kind="request_environment_mismatch", message="Gemini returned another model version",
                     http_status=status, response_body=raw, response_metadata=metadata)
         metadata.update(provider_model_version=data.get("modelVersion"),
-            provider_downgraded_to_standard=metadata.get("service_tier_actual") == "standard",
+            provider_downgraded_to_standard=tier == "priority" and metadata.get("service_tier_actual") == "standard",
             service_tier_unknown=metadata.get("service_tier_actual") not in {"priority", "standard"})
     return AdapterResult(
         provider="Google", requested_model=model_id, returned_model=model_id,
@@ -399,7 +405,8 @@ def call_perplexity_agent(*, model_id: str, prompt: str, profile: dict[str, Any]
     )
 
 
-def call_provider(*, provider: str, model_id: str, prompt: str, profile: dict[str, Any], timeout_s: int = 180) -> AdapterResult:
+def call_provider(*, provider: str, model_id: str, prompt: str, profile: dict[str, Any], timeout_s: int = 180,
+                  capture_response_metadata: bool = False) -> AdapterResult:
     adapter = profile.get("adapter")
     expected = {
         "OpenAI": ("openai_responses",),
@@ -417,7 +424,8 @@ def call_provider(*, provider: str, model_id: str, prompt: str, profile: dict[st
     if provider == "Anthropic":
         return call_anthropic(model_id=model_id, prompt=prompt, profile=profile, timeout_s=timeout_s)
     if provider == "Google":
-        return call_gemini(model_id=model_id, prompt=prompt, profile=profile, timeout_s=timeout_s)
+        return call_gemini(model_id=model_id, prompt=prompt, profile=profile, timeout_s=timeout_s,
+            **({"capture_response_metadata": True} if capture_response_metadata else {}))
     if adapter == "perplexity_agent":
         return call_perplexity_agent(model_id=model_id, prompt=prompt, profile=profile, timeout_s=timeout_s)
     return call_perplexity(model_id=model_id, prompt=prompt, profile=profile, timeout_s=timeout_s)

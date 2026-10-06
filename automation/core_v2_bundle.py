@@ -128,6 +128,8 @@ def build_bundle(*, protocol_path: Path, wave_id: str, site_id: str,
             readiness_report_sha256=sha256_file(preflight_copy))
     if protocol["protocol_version"] == runner.PRIORITY_PROTOCOL_VERSION:
         authorization["prospective_gemini_priority_amendment_reviewed"] = False
+    if protocol["protocol_version"] == runner.STANDARD_PROTOCOL_VERSION:
+        authorization["prospective_gemini_standard_amendment_reviewed"] = False
     _write_exclusive(
         out_dir / "core_v2_execution_authorization.template.json",
         canonical_json_bytes(authorization),

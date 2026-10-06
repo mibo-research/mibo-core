@@ -21,7 +21,8 @@ PROTOCOL_VERSION = "2.0"
 AGENT_PROTOCOL_VERSION = "2.0.1"
 ADMISSION_PROTOCOL_VERSION = "2.0.2"
 PRIORITY_PROTOCOL_VERSION = "2.0.3"
-SCOPED_PROTOCOL_VERSIONS = {ADMISSION_PROTOCOL_VERSION, PRIORITY_PROTOCOL_VERSION}
+STANDARD_PROTOCOL_VERSION = "2.0.4"
+SCOPED_PROTOCOL_VERSIONS = {ADMISSION_PROTOCOL_VERSION, PRIORITY_PROTOCOL_VERSION, STANDARD_PROTOCOL_VERSION}
 AGENT_PROTOCOL_VERSIONS = {AGENT_PROTOCOL_VERSION, *SCOPED_PROTOCOL_VERSIONS}
 SUPPORTED_PROTOCOL_VERSIONS = {PROTOCOL_VERSION, *AGENT_PROTOCOL_VERSIONS}
 PRIOR_REGISTRATION = "10.5281/zenodo.22264635"
@@ -116,6 +117,11 @@ def load_protocol(path: Path, *, require_final: bool = True) -> tuple[dict[str, 
             raise ValueError("Gemini Priority policy mismatch")
         if data.get("prior_lineage_amendment_registration_id") != "https://github.com/mibo-research/mibo-core/blob/71bd6cf4c3267ddf655eed21935837b19d54b030/docs/v2.0.2/AMENDMENT_v2.0.2.md":
             raise ValueError("prior lineage amendment registration mismatch")
+    if version == STANDARD_PROTOCOL_VERSION:
+        if data.get("gemini_standard_policy") != "restore-standard-after-priority-eligibility-review-v1":
+            raise ValueError("Gemini Standard restoration policy mismatch")
+        if data.get("prior_priority_amendment_registration_id") != "https://github.com/mibo-research/mibo-core/blob/04a903824842a09dcbc6f89612a47e55bc1b2304/docs/v2.0.3/AMENDMENT_v2.0.3.md":
+            raise ValueError("prior Priority amendment registration mismatch")
     waves = data.get("waves")
     if not isinstance(waves, list) or len(waves) != 12:
         raise ValueError("Core v2 protocol requires exactly twelve waves")

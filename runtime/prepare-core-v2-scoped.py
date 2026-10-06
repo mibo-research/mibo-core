@@ -182,6 +182,8 @@ def authorize_and_start(*, out_dir: Path, built: dict, data_root: Path, values: 
         explicit_human_phrase=phrase)
     if auth["protocol_version"] == runner.PRIORITY_PROTOCOL_VERSION:
         auth["prospective_gemini_priority_amendment_reviewed"] = True
+    if auth["protocol_version"] == runner.STANDARD_PROTOCOL_VERSION:
+        auth["prospective_gemini_standard_amendment_reviewed"] = True
     write(authorization_path, auth)
     protocol = base / built["protocol_file"]
     freeze = base / built["provider_freeze_file"]

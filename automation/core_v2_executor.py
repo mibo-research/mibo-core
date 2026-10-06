@@ -122,6 +122,10 @@ def preflight(*, protocol_path: Path, manifest_path: Path, freeze_path: Path,
             prior_versions.append(runner.AGENT_PROTOCOL_VERSION)
         for prior in prior_versions:
             legacy_root = archive.wave_root(data_root, site_id, wave_id, prior)
+            if version == runner.STANDARD_PROTOCOL_VERSION:
+                import core_v2_standard
+                core_v2_standard.block_prior_google_attempts(data_root, site_id, wave_id)
+                break
             if version == runner.PRIORITY_PROTOCOL_VERSION:
                 import core_v2_priority
                 core_v2_priority.block_prior_google_attempts(data_root, site_id, wave_id)
@@ -322,6 +326,8 @@ def execute(*, protocol_path: Path, manifest_path: Path, freeze_path: Path,
                 provider=row["provider"], model_id=row["model_id"],
                 prompt=prompts[row["query_form_id"]],
                 profile=cfg["request_profile"], timeout_s=timeout_s,
+                **({"capture_response_metadata": True} if row["protocol_version"] == runner.STANDARD_PROTOCOL_VERSION
+                   and row["provider"] == "Google" else {}),
             )
         except AdapterFailure as exc:
             failed_at = datetime.now(timezone.utc)
