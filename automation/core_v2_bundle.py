@@ -35,7 +35,7 @@ def build_bundle(*, protocol_path: Path, wave_id: str, site_id: str,
     )
     preflight = json.loads(preflight_report_path.read_text(encoding="utf-8"))
     expected = {
-        "protocol_version": runner.PROTOCOL_VERSION,
+        "protocol_version": protocol["protocol_version"],
         "protocol_registration_id": protocol["protocol_registration_id"],
         "protocol_file_sha256": protocol_sha,
         "scientific_class": runner.SCIENTIFIC_CLASS,
@@ -71,8 +71,8 @@ def build_bundle(*, protocol_path: Path, wave_id: str, site_id: str,
     runner.write_csv(rows, manifest_path)
     manifest_sha = sha256_file(manifest_path)
     report = {
-        "schema_version": runner.PROTOCOL_VERSION,
-        "protocol_version": runner.PROTOCOL_VERSION,
+        "schema_version": protocol["protocol_version"],
+        "protocol_version": protocol["protocol_version"],
         "protocol_registration_id": protocol["protocol_registration_id"],
         "scientific_class": runner.SCIENTIFIC_CLASS,
         "observation_surface": runner.OBSERVATION_SURFACE,
@@ -93,8 +93,8 @@ def build_bundle(*, protocol_path: Path, wave_id: str, site_id: str,
     report_path = out_dir / "CORE_V2_BUNDLE_REPORT.json"
     report_sha = _write_exclusive(report_path, canonical_json_bytes(report))
     authorization = {
-        "schema_version": runner.PROTOCOL_VERSION,
-        "protocol_version": runner.PROTOCOL_VERSION,
+        "schema_version": protocol["protocol_version"],
+        "protocol_version": protocol["protocol_version"],
         "protocol_registration_id": protocol["protocol_registration_id"],
         "wave_id": wave_id, "site_id": site_id,
         "authorized": False, "authorized_at_utc": None, "operations_lead": None,
@@ -107,6 +107,9 @@ def build_bundle(*, protocol_path: Path, wave_id: str, site_id: str,
         "bundle_report_sha256": report_sha,
         "note": "Human authorization template. The bundle builder never authorizes execution.",
     }
+    if protocol["protocol_version"] == runner.AGENT_PROTOCOL_VERSION:
+        authorization["prospective_agent_amendment_reviewed"] = False
+        authorization["late_activation_with_original_windows_approved"] = False
     _write_exclusive(
         out_dir / "core_v2_execution_authorization.template.json",
         canonical_json_bytes(authorization),

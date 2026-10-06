@@ -131,7 +131,7 @@ def run_preflight(*, protocol_path: Path, freeze_path: Path, out_dir: Path,
                     check["exact_metadata_verified"] = True
                     check["verification_method"] = "synthetic_smoke_returned_model"
                 record = {
-                    "protocol_version": runner.PROTOCOL_VERSION,
+                    "protocol_version": protocol["protocol_version"],
                     "scientific_class": runner.SCIENTIFIC_CLASS,
                     "readiness_only": True, "service_lineage_id": sid,
                     "provider": label, "requested_model": model_id,
@@ -160,8 +160,8 @@ def run_preflight(*, protocol_path: Path, freeze_path: Path, out_dir: Path,
         if not verified:
             errors.append(f"{label} Core v2 model was not verified: {model_id}")
     report = {
-        "schema_version": runner.PROTOCOL_VERSION,
-        "protocol_version": runner.PROTOCOL_VERSION,
+        "schema_version": protocol["protocol_version"],
+        "protocol_version": protocol["protocol_version"],
         "protocol_registration_id": protocol["protocol_registration_id"],
         "protocol_file_sha256": protocol_sha,
         "scientific_class": runner.SCIENTIFIC_CLASS,

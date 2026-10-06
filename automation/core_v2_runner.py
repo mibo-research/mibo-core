@@ -18,6 +18,10 @@ from typing import Any
 import mibo_runner as v1
 
 PROTOCOL_VERSION = "2.0"
+AGENT_PROTOCOL_VERSION = "2.0.1"
+SUPPORTED_PROTOCOL_VERSIONS = {PROTOCOL_VERSION, AGENT_PROTOCOL_VERSION}
+PRIOR_REGISTRATION = "10.5281/zenodo.22264635"
+AGENT_CONTRACT = "direct-model-no-tools-v1"
 SCIENTIFIC_CLASS = "confirmatory_primary"
 OBSERVATION_SURFACE = "provider_api"
 ENVIRONMENT_CLASS = "CLOSED"
@@ -50,9 +54,12 @@ def sha256_file(path: Path) -> str:
 
 def load_protocol(path: Path, *, require_final: bool = True) -> tuple[dict[str, Any], str]:
     data = json.loads(path.read_text(encoding="utf-8"))
+    version = data.get("protocol_version")
+    if version not in SUPPORTED_PROTOCOL_VERSIONS:
+        raise ValueError("unsupported Core v2 protocol version")
     expected = {
-        "schema_version": PROTOCOL_VERSION,
-        "protocol_version": PROTOCOL_VERSION,
+        "schema_version": version,
+        "protocol_version": version,
         "primary_scientific_class": SCIENTIFIC_CLASS,
         "observation_surface": OBSERVATION_SURFACE,
         "environment_class": ENVIRONMENT_CLASS,
@@ -81,6 +88,20 @@ def load_protocol(path: Path, *, require_final: bool = True) -> tuple[dict[str, 
         reg = data.get("protocol_registration_id")
         if not isinstance(reg, str) or not reg.strip() or reg.startswith("REPLACE_"):
             raise ValueError("Core v2 protocol registration ID is not finalized")
+    if version == AGENT_PROTOCOL_VERSION:
+        if data.get("prior_protocol_registration_id") != PRIOR_REGISTRATION:
+            raise ValueError("Agent amendment must identify the preserved v2.0 registration")
+        if data.get("perplexity_transport_contract") != AGENT_CONTRACT:
+            raise ValueError("Agent amendment transport contract mismatch")
+        if data.get("late_activation_policy") != "preserve-original-windows-record-actual-times":
+            raise ValueError("Agent amendment must preserve windows and actual timestamps")
+        original = json.loads((Path(__file__).parent / "config" / "core_v2_protocol.v2.0.json").read_text(encoding="utf-8"))
+        if data.get("waves") != original["waves"]:
+            raise ValueError("Agent amendment must preserve the original registered schedule")
+        if require_final:
+            if data.get("protocol_registration_id") == PRIOR_REGISTRATION:
+                raise ValueError("Agent amendment requires its own public registration identifier")
+            parse_aware_utc(data.get("prospectively_registered_at_utc"))
     waves = data.get("waves")
     if not isinstance(waves, list) or len(waves) != 12:
         raise ValueError("Core v2 protocol requires exactly twelve waves")
@@ -113,6 +134,18 @@ def load_protocol(path: Path, *, require_final: bool = True) -> tuple[dict[str, 
     return data, sha256_file(path)
 
 
+def parse_aware_utc(value: Any) -> datetime:
+    if not isinstance(value, str):
+        raise ValueError("prospective timestamps require an explicit timezone")
+    try:
+        parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except ValueError as exc:
+        raise ValueError("invalid prospective timestamp") from exc
+    if parsed.tzinfo is None:
+        raise ValueError("prospective timestamps require an explicit timezone")
+    return parsed.astimezone(timezone.utc)
+
+
 def wave(protocol: dict[str, Any], wave_id: str) -> dict[str, Any]:
     matches = [w for w in protocol["waves"] if w["wave_id"] == wave_id]
     if len(matches) != 1:
@@ -123,7 +156,8 @@ def wave(protocol: dict[str, Any], wave_id: str) -> dict[str, Any]:
 def load_freeze(path: Path, *, protocol: dict[str, Any], wave_id: str,
                 site_id: str) -> tuple[dict[str, Any], str]:
     data = json.loads(path.read_text(encoding="utf-8"))
-    if data.get("schema_version") != PROTOCOL_VERSION or data.get("protocol_version") != PROTOCOL_VERSION:
+    version = protocol["protocol_version"]
+    if data.get("schema_version") != version or data.get("protocol_version") != version:
         raise ValueError("Core v2 provider freeze schema/protocol version mismatch")
     if data.get("protocol_registration_id") != protocol.get("protocol_registration_id"):
         raise ValueError("Core v2 provider freeze registration ID mismatch")
@@ -133,6 +167,9 @@ def load_freeze(path: Path, *, protocol: dict[str, Any], wave_id: str,
         raise ValueError("Core v2 provider freeze surface/environment mismatch")
     if not data.get("frozen_at_utc"):
         raise ValueError("Core v2 provider freeze is not finalized")
+    if version == AGENT_PROTOCOL_VERSION:
+        if parse_aware_utc(data["frozen_at_utc"]) < parse_aware_utc(protocol["prospectively_registered_at_utc"]):
+            raise ValueError("Agent freeze must follow prospective amendment registration")
     entries = data.get("core_api")
     expected_ids = {s["service_lineage_id"] for s in v1._services()}
     if not isinstance(entries, dict) or set(entries) != expected_ids:
@@ -153,7 +190,10 @@ def load_freeze(path: Path, *, protocol: dict[str, Any], wave_id: str,
         profile = cfg["request_profile"]
         if not isinstance(profile, dict):
             raise ValueError(f"{sid} request_profile must be an object")
-        if profile.get("adapter") != EXPECTED_ADAPTER[service["provider"]]:
+        expected_adapter = EXPECTED_ADAPTER[service["provider"]]
+        if version == AGENT_PROTOCOL_VERSION and service["provider"] == "Perplexity AI":
+            expected_adapter = "perplexity_agent"
+        if profile.get("adapter") != expected_adapter:
             raise ValueError(f"{sid} request_profile adapter mismatch")
         if FORBIDDEN_PROFILE_KEYS.intersection(profile):
             raise ValueError(f"{sid} request_profile contains forbidden capability keys")
@@ -163,6 +203,17 @@ def load_freeze(path: Path, *, protocol: dict[str, Any], wave_id: str,
             raise ValueError(f"{sid} request_profile requires max_output_tokens")
         if service["provider"] == "Perplexity AI" and profile.get("disable_search") is not True:
             raise ValueError(f"{sid} Perplexity API-only Core requires disable_search=true")
+        if expected_adapter == "perplexity_agent":
+            allowed = {"adapter", "endpoint", "api_key_env", "max_output_tokens", "temperature", "top_p", "reasoning", "disable_search"}
+            if set(profile) - allowed:
+                raise ValueError(f"{sid} Agent profile contains unsupported settings")
+            if not isinstance(cfg["model_id"], str) or not cfg["model_id"].startswith("perplexity/"):
+                raise ValueError(f"{sid} Agent requires an explicit Perplexity model")
+            if profile.get("endpoint") not in {"https://api.perplexity.ai/v1/agent", "https://api.perplexity.ai/v1/responses"}:
+                raise ValueError(f"{sid} Agent endpoint mismatch")
+            limit = profile["max_output_tokens"]
+            if isinstance(limit, bool) or not isinstance(limit, int) or limit < 1:
+                raise ValueError(f"{sid} Agent output budget must be a positive integer")
     return data, sha256_file(path)
 
 
@@ -204,7 +255,7 @@ def generate_manifest(*, protocol_path: Path, freeze_path: Path,
         rows.append({
             "attempt_id": attempt_id(site_id, wave_id, service["short_id"], form["item_id"], form["language"], window_id, replication, 1),
             "observation_id": "",
-            "protocol_version": PROTOCOL_VERSION,
+            "protocol_version": protocol["protocol_version"],
             "protocol_registration_id": protocol["protocol_registration_id"],
             "protocol_file_sha256": protocol_sha,
             "instrument_source_doi": v1.PROTOCOL_DOI,
@@ -303,7 +354,7 @@ def validate_manifest(rows: list[dict[str, Any]], *, protocol_path: Path,
             errors.append(f"row {i}: unknown service or query form")
             continue
         constants = {
-            "protocol_version": PROTOCOL_VERSION,
+            "protocol_version": protocol["protocol_version"],
             "protocol_registration_id": protocol["protocol_registration_id"],
             "protocol_file_sha256": protocol_sha,
             "instrument_source_doi": v1.PROTOCOL_DOI,
