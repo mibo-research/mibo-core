@@ -130,6 +130,14 @@ def seal(root, gid):
     if any(p.stat().st_uid != 0 or p.stat().st_mode & 0o222 for p in [root] + list(root.rglob("*"))):
         raise ValueError("Read-only seal verification failed")
 
+def completion_name():
+    # Buffered update mode (r+) requires seeking and cannot open a real TTY.
+    with open("/dev/tty", "w", encoding="utf-8") as writer:
+        writer.write("集計を確認し、欠測を保持した終了記録に署名する氏名（空欄で中止）: ")
+        writer.flush()
+    with open("/dev/tty", "r", encoding="utf-8") as reader:
+        return reader.readline().strip()
+
 def main():
     if os.geteuid() != 0 or datetime.now(timezone.utc) < datetime.fromisoformat(FIELD_CLOSE):
         raise ValueError("Root and completed registered field window required")
@@ -165,10 +173,7 @@ def main():
             continue
         if any(t.rsplit(b"/", 1)[-1] in {b"core_v2_waiter.py", b"core_v2_executor.py"} for t in tokens):
             raise ValueError("Active collector process found; closure aborted")
-    with open("/dev/tty", "r+") as tty:
-        tty.write("集計を確認し、欠測を保持した終了記録に署名する氏名（空欄で中止）: ")
-        tty.flush()
-        name = tty.readline().strip()
+    name = completion_name()
     if not name:
         raise ValueError("Human completion sign-off not supplied; no files changed")
     signed_at = utc()
