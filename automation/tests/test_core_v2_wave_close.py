@@ -3,6 +3,7 @@ import importlib.util
 import io
 import json
 import os
+import pty
 import tempfile
 import unittest
 from contextlib import redirect_stdout
@@ -104,6 +105,21 @@ class CloseTests(unittest.TestCase):
     def test_cycle_is_rejected(self):
         with self.assertRaises(ValueError):
             close.original("a", {"a": "b", "b": "a"}, {})
+    def test_real_terminal_signoff_without_seek(self):
+        master, slave = pty.openpty()
+        device = os.ttyname(slave)
+        native_open = open
+        try:
+            with self.assertRaises(io.UnsupportedOperation):
+                native_open(device, "r+")
+            os.write(master, "合成担当者\n".encode())
+            def terminal_open(file, *args, **kwargs):
+                return native_open(device if file == "/dev/tty" else file, *args, **kwargs)
+            with patch("builtins.open", side_effect=terminal_open):
+                self.assertEqual(close.completion_name(), "合成担当者")
+        finally:
+            os.close(master)
+            os.close(slave)
     def test_full_offline_close_and_archive(self):
         others = set(close.LABELS) - self.admitted
         root2, _, inputs2, _ = fixture(self.base, "2.0.2", others, True)
