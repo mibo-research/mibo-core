@@ -239,6 +239,8 @@ class PriorityAdmissionTests(unittest.TestCase):
             checked = self.check(location, built, auth, Path(d))
             row = next(r for r in checked[0] if r["window_id"] == "STD")
             stack.enter_context(mock.patch.object(executor, "preflight", return_value=([row], *checked[1:])))
+            clock = stack.enter_context(mock.patch.object(executor, "datetime", wraps=datetime))
+            clock.now.return_value = datetime(2026, 10, 6, 12, tzinfo=timezone.utc)
             stack.enter_context(mock.patch.dict(os.environ, {"MIBO_CORE_V2_EXECUTION": executor.EXECUTION_SENTINEL}))
             called = stack.enter_context(mock.patch.object(executor, "call_provider", side_effect=lambda **kw: self.result("standard", **kw)))
             summary = executor.execute(protocol_path=location / "bundle" / built["protocol_file"],

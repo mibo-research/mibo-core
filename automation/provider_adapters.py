@@ -10,7 +10,9 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime, timezone
+from email.utils import parsedate_to_datetime
 import json
+import math
 import os
 import socket
 import time
@@ -67,13 +69,25 @@ def _utc_now() -> str:
     return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
 
 
-def _retry_after(headers: Any) -> int | None:
+def _retry_after(headers: Any, *, now: datetime | None = None) -> int | None:
+    """Accept both HTTP Retry-After forms without rounding a wait down."""
     value = headers.get("Retry-After") if headers else None
     if not value:
         return None
     try:
         return max(0, int(value))
     except (TypeError, ValueError):
+        pass
+    try:
+        retry_at = parsedate_to_datetime(value)
+        # The obsolete asctime HTTP-date form does not contain a timezone.
+        if retry_at.tzinfo is None:
+            retry_at = retry_at.replace(tzinfo=timezone.utc)
+        received_at = now if now is not None else datetime.now(timezone.utc)
+        if received_at.tzinfo is None:
+            raise ValueError("Retry-After reference time must be timezone-aware")
+        return max(0, math.ceil((retry_at - received_at).total_seconds()))
+    except (TypeError, ValueError, OverflowError):
         return None
 
 

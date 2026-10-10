@@ -197,6 +197,9 @@ class AgentAmendmentTests(unittest.TestCase):
                      'query_form_id': 'synthetic-form'} for n in (1, 2)]
             start = datetime(2026, 1, 1, tzinfo=timezone.utc)
             close = datetime(2099, 1, 1, tzinfo=timezone.utc)
+            # The real executor now durably binds each dispatch to its private
+            # authorization record before calling a provider.
+            (root / 'unused').write_text('{}', encoding='utf-8')
             with mock.patch.dict(os.environ, {'MIBO_CORE_V2_EXECUTION': executor.EXECUTION_SENTINEL}), \
                  mock.patch.object(executor, 'preflight', return_value=(rows, {'core_api': {
                      'MIBO-SL-004': {'request_profile': {}}}}, {}, start, close)), \

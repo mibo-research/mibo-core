@@ -117,6 +117,7 @@ def run_preflight(*, protocol_path: Path, freeze_path: Path, out_dir: Path,
                 result = call_provider(
                     provider=label, model_id=model_id, prompt=SYNTHETIC_PROMPT,
                     profile=cfg["request_profile"], timeout_s=max(timeout_s, 60),
+                    **({"capture_response_metadata": True} if label == "Google" else {}),
                 )
             except AdapterFailure as exc:
                 errors.append(f"{label} Core v2 smoke failed for {model_id}: {exc.kind}")
@@ -127,6 +128,7 @@ def run_preflight(*, protocol_path: Path, freeze_path: Path, out_dir: Path,
                     "recorded_at_utc": api.utc_now(),
                     "retry_after_seconds": exc.retry_after_seconds,
                     "response_body": exc.response_body,
+                    "response_metadata": exc.response_metadata,
                     "registered_mibo_prompt_used": False,
                 }
                 if isinstance(failure["response_body"], str):
@@ -157,6 +159,7 @@ def run_preflight(*, protocol_path: Path, freeze_path: Path, out_dir: Path,
                     "completed_at_utc": result.completed_at_utc,
                     "duration_ms": result.duration_ms, "usage": result.usage,
                     "request_payload": result.request_payload, "response": result.response_json,
+                    "response_metadata": getattr(result, "response_metadata", None),
                     "synthetic_prompt_sha256": hashlib.sha256(SYNTHETIC_PROMPT.encode("utf-8")).hexdigest(),
                     "registered_mibo_prompt_used": False,
                     "returned_model_matches_requested": returned_model_matches,

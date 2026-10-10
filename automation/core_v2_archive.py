@@ -4,7 +4,9 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 import hashlib
+import os
 from pathlib import Path
+import re
 from typing import Any
 
 from raw_archive import canonical_json_bytes
@@ -14,9 +16,24 @@ SCIENTIFIC_CLASS = "confirmatory_primary"
 
 
 def _write_exclusive(path: Path, data: bytes) -> str:
+    missing_parents: list[Path] = []
+    parent = path.parent
+    while not parent.exists():
+        missing_parents.append(parent)
+        parent = parent.parent
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.open("xb") as fh:
         fh.write(data)
+        fh.flush()
+        os.fsync(fh.fileno())
+    # The exclusive filename must survive a reboot as well as the bytes. This
+    # is especially important for the pre-dispatch record used by the executor.
+    for directory in [path.parent] + [p.parent for p in missing_parents]:
+        fd = os.open(directory, os.O_RDONLY | os.O_DIRECTORY)
+        try:
+            os.fsync(fd)
+        finally:
+            os.close(fd)
     return hashlib.sha256(data).hexdigest()
 
 
@@ -24,7 +41,15 @@ def wave_root(data_root: Path, site_id: str, wave_id: str,
               protocol_version: str = PROTOCOL_VERSION) -> Path:
     if protocol_version not in {"2.0", "2.0.1", "2.0.2", "2.0.3", "2.0.4"}:
         raise ValueError("unsupported Core archive protocol version")
-    return data_root / f"v{protocol_version}" / site_id / wave_id
+    if any(not isinstance(value, str) or not re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9_-]*', value)
+           for value in (site_id, wave_id)):
+        raise ValueError("unsafe Core archive site/wave identity")
+    root = data_root
+    for component in (f"v{protocol_version}", site_id, wave_id):
+        root = root / component
+        if root.is_symlink():
+            raise ValueError("Core archive namespace must not contain a symlink")
+    return root
 
 
 def archive_success(*, data_root: Path, row: dict[str, Any], request_payload: dict[str, Any],

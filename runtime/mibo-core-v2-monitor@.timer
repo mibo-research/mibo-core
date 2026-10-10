@@ -1,0 +1,10 @@
+[Unit]
+Description=Check MIBO Core v2 technical state every five minutes for %i
+
+[Timer]
+OnBootSec=1min
+OnUnitActiveSec=5min
+AccuracySec=10s
+
+[Install]
+WantedBy=timers.target
