@@ -234,6 +234,7 @@ class AdmissionTests(unittest.TestCase):
                 stack.enter_context(mock.patch("builtins.open", side_effect=[reader, writer]))
                 stack.enter_context(mock.patch.object(scoped, "UNIT_DIR", units))
                 stack.enter_context(mock.patch.object(scoped, "permissions"))
+                ownership = stack.enter_context(mock.patch.object(scoped.os, "chown"))
                 stack.enter_context(mock.patch.object(scoped.grp, "getgrnam", return_value=SimpleNamespace(gr_gid=os.getgid())))
                 stack.enter_context(mock.patch("pwd.getpwnam", return_value=SimpleNamespace(pw_uid=os.getuid(), pw_gid=os.getgid())))
                 run = stack.enter_context(mock.patch.object(scoped.subprocess, "run"))
@@ -248,6 +249,7 @@ class AdmissionTests(unittest.TestCase):
                         with self.assertRaisesRegex(ValueError, "human execution"):
                             scoped.authorize_and_start(out_dir=dest, built=built, data_root=Path(d) / "data", values=values)
                         run.assert_not_called()
+                        ownership.assert_not_called()
                         self.assertFalse((dest / "core_v2_execution_authorization.scoped.json").exists())
                     else:
                         scoped.authorize_and_start(out_dir=dest, built=built, data_root=Path(d) / "data", values=values)
@@ -259,6 +261,7 @@ class AdmissionTests(unittest.TestCase):
                         auth = json.loads((dest / "core_v2_execution_authorization.scoped.json").read_text())
                         self.assertEqual(auth["explicit_human_phrase"], phrase)
                         self.assertEqual(auth["admitted_lineages"], admission.INITIAL_SCOPE)
+                        ownership.assert_any_call(dest / "ready-three.env", 0, os.getgid())
 
 
 if __name__ == "__main__":

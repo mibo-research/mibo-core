@@ -86,6 +86,23 @@ class GenericCloseTests(unittest.TestCase):
         with mock.patch.object(close.subprocess, "check_output", side_effect=self.state), mock.patch.object(close, "verify_no_collector"), mock.patch.dict(os.environ, {close.SENTINEL: "DISABLED"}):
             return close.prepare(self.config, current=current or self.after)
 
+    def privileged_filesystem(self, stack):
+        # CI runs unprivileged. Simulate only ownership, retain real chmod/hash/
+        # archive verification, and leave the production root gate untouched.
+        native_seal = close.seal
+        native_stat = Path.stat
+        def root_owned_stat(path, *args, **kwargs):
+            fields = list(native_stat(path, *args, **kwargs))
+            fields[4] = 0
+            return os.stat_result(fields)
+        def synthetic_seal(root, gid):
+            with mock.patch.object(Path, "stat", new=root_owned_stat):
+                native_seal(root, gid)
+        stack.enter_context(mock.patch.object(close.os, "geteuid", return_value=0))
+        chown = stack.enter_context(mock.patch.object(close.os, "chown"))
+        stack.enter_context(mock.patch.object(close, "seal", side_effect=synthetic_seal))
+        return chown
+
     def save_capture(self, row, *, started=None, completed=None):
         stamp = "2026-10-06T00:01:" if row["wave_id"] == "MIBO2-W01" else "2026-11-03T00:01:"
         return archive.archive_success(data_root=self.data, row=row,
@@ -272,6 +289,7 @@ class GenericCloseTests(unittest.TestCase):
         def authorization(path, **kwargs):
             return {"admitted_lineages": next(entry["lineages"] for entry in entries if Path(entry["authorization"]) == path)}
         with ExitStack() as stack:
+            chown = self.privileged_filesystem(stack)
             stack.enter_context(mock.patch.object(close.subprocess, "check_output", side_effect=state))
             stack.enter_context(mock.patch.object(close, "verify_no_collector"))
             stack.enter_context(mock.patch.object(close.executor, "load_authorization", side_effect=authorization))
@@ -282,6 +300,7 @@ class GenericCloseTests(unittest.TestCase):
             self.assertEqual(sum(len(item["cells"]) for item in work), 960)
             self.assertEqual([len(item["cells"]) for item in work], [720, 240])
             result = close.finish(prepared, work, "Synthetic Operations Lead")
+            self.assertTrue(chown.called)
         self.assertTrue(result.is_file())
         for row in assigned_rows:
             root = self.data / ("v" + row["protocol_version"]) / "JP01/MIBO2-W02"
@@ -327,17 +346,19 @@ class GenericCloseTests(unittest.TestCase):
 
     def test_blank_signoff_and_toctou_do_not_mutate(self):
         config, work = self.prepare()
-        with self.assertRaisesRegex(ValueError, "sign-off"):
-            close.finish(config, work, "")
-        (self.root / "deviations/new.json").write_text("{}")
-        with self.assertRaisesRegex(ValueError, "Evidence changed"):
-            close.finish(config, work, "Synthetic Operations Lead")
+        with mock.patch.object(close.os, "geteuid", return_value=0):
+            with self.assertRaisesRegex(ValueError, "sign-off"):
+                close.finish(config, work, "")
+            (self.root / "deviations/new.json").write_text("{}")
+            with self.assertRaisesRegex(ValueError, "Evidence changed"):
+                close.finish(config, work, "Synthetic Operations Lead")
         self.assertFalse((self.root / "closure").exists())
 
     def test_full_close_archive_verifies_and_backup_stays_unverified(self):
         config, work = self.prepare()
         out = io.StringIO()
         with ExitStack() as stack:
+            chown = self.privileged_filesystem(stack)
             stack.enter_context(mock.patch.object(close.subprocess, "check_output", side_effect=self.state))
             stack.enter_context(mock.patch.object(close, "verify_no_collector"))
             stack.enter_context(mock.patch.object(close.grp, "getgrnam", return_value=SimpleNamespace(gr_gid=os.getgid())))
@@ -345,6 +366,7 @@ class GenericCloseTests(unittest.TestCase):
             stack.enter_context(mock.patch.dict(os.environ, {close.SENTINEL: "DISABLED"}))
             stack.enter_context(redirect_stdout(out))
             result = close.finish(config, work, "Synthetic Operations Lead")
+            self.assertTrue(chown.called)
         self.assertTrue(result.is_file())
         record = json.loads((self.root / "closure/COMPLETION_RECORD.json").read_text())
         self.assertEqual(record["independent_backup_at_signoff"], "not_verified")
@@ -362,6 +384,20 @@ class GenericCloseTests(unittest.TestCase):
             self.assertEqual(close.run_cli([]), 1)
         self.assertIn("ValueError", stderr.getvalue())
         self.assertNotIn("SYNTHETIC_PRIVATE_API_SECRET", stderr.getvalue())
+
+    def test_nonroot_cannot_sign_seal_or_reach_terminal_prompt(self):
+        config, work = self.prepare()
+        before = close.tree_hashes(self.root)
+        with mock.patch.object(close.os, "geteuid", return_value=65534), mock.patch.object(close, "completion_name") as prompt, mock.patch.object(close.os, "chown") as chown:
+            with self.assertRaisesRegex(ValueError, "Root required"):
+                close.finish(config, work, "Synthetic Operations Lead")
+            with mock.patch.object(close, "prepare", return_value=(config, work)), redirect_stdout(io.StringIO()):
+                with self.assertRaisesRegex(ValueError, "Root required"):
+                    close.main(["--config", str(self.config), "--execute"])
+            prompt.assert_not_called()
+            chown.assert_not_called()
+        self.assertEqual(close.tree_hashes(self.root), before)
+        self.assertFalse((self.root / "closure").exists())
 
 
 if __name__ == "__main__":
