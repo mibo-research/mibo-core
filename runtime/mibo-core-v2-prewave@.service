@@ -1,0 +1,18 @@
+[Unit]
+Description=MIBO Core v2 offline deployment gate for %i
+After=network-online.target time-sync.target
+
+[Service]
+Type=oneshot
+User=mibo
+Group=mibo
+EnvironmentFile=/etc/mibo/%i.env
+Environment=PYTHONDONTWRITEBYTECODE=1
+ExecStart=/usr/bin/python3 -B ${MIBO_CORE_V2_SOURCE_ROOT}/automation/core_v2_prewave.py --protocol ${MIBO_CORE_V2_PROTOCOL} --wave ${MIBO_CORE_V2_WAVE} --manifest ${MIBO_CORE_V2_MANIFEST} --freeze ${MIBO_CORE_V2_FREEZE} --authorization ${MIBO_CORE_V2_AUTHORIZATION} --data-root ${MIBO_DATA_ROOT} --expected-host ${MIBO_RUNTIME_HOST} --expected-source-commit ${MIBO_CORE_V2_SOURCE_COMMIT} --strict-runtime
+TimeoutStartSec=120
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/srv/mibo-data /srv/mibo-private
+UMask=0077

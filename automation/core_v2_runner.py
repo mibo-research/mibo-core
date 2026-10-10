@@ -370,7 +370,13 @@ def validate_manifest(rows: list[dict[str, Any]], *, protocol_path: Path,
     ids = [r.get("attempt_id") for r in rows]
     if len(ids) != len(set(ids)):
         errors.append("Core v2 attempt_id values are not unique")
-    orders = [int(r.get("execution_order", 0)) for r in rows]
+    try:
+        orders = [int(r.get("execution_order", 0)) for r in rows]
+        for row in rows:
+            for field in ("replication", "attempt", "random_seed"):
+                int(row.get(field, -1))
+    except (TypeError, ValueError):
+        return errors + ["Core v2 manifest contains invalid integer fields"]
     if sorted(orders) != list(range(1, len(rows) + 1)):
         errors.append("Core v2 execution_order is not contiguous and unique")
     seed = deterministic_seed(wave_id, site_id)
@@ -434,6 +440,26 @@ def validate_manifest(rows: list[dict[str, Any]], *, protocol_path: Path,
             errors.append(f"Core v2 calibration window counts {counts} are invalid")
     elif any(r.get("window_id") != "STD" for r in rows):
         errors.append("Core v2 non-calibration manifest must use STD only")
+    # A seed and contiguous order values do not prove the registered order.
+    # Regenerate from frozen inputs and bind exact identity including attached order.
+    expected_rows = generate_manifest(
+        protocol_path=protocol_path, freeze_path=freeze_path,
+        wave_id=wave_id, site_id=site_id,
+    )
+    expected_by_id = {row["attempt_id"]: row for row in expected_rows}
+    for i, row in enumerate(rows, 1):
+        expected_row = expected_by_id.get(row.get("attempt_id"))
+        if expected_row is None:
+            errors.append(f"row {i}: not in the deterministic registered manifest")
+            continue
+        if set(row) != set(expected_row):
+            errors.append(f"row {i}: deterministic manifest columns mismatch")
+        for field, expected in expected_row.items():
+            actual = row.get(field)
+            if field in {"replication", "attempt", "execution_order", "random_seed"}:
+                actual = int(actual) if actual is not None else None
+            if actual != expected:
+                errors.append(f"row {i}: deterministic manifest {field} mismatch")
     return errors
 
 

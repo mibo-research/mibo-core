@@ -201,7 +201,8 @@ class CoreV2ReadinessTests(unittest.TestCase):
                     data=data,
                 )
 
-            def call_side(*, provider, model_id, prompt, profile, timeout_s):
+            def call_side(*, provider, model_id, prompt, profile, timeout_s,
+                          capture_response_metadata=False):
                 return SimpleNamespace(
                     returned_model=model_id,
                     http_status=200,
@@ -337,6 +338,8 @@ class InstalledSnapshotSealTests(unittest.TestCase):
             result = module.seal(root, "a" * 40)
             self.assertEqual(result["source_commit_sha"], "a" * 40)
             self.assertEqual(result["hashed_file_count"], 2)
+            self.assertEqual(result["service_templates_present"], [])
+            self.assertNotIn("installed_services", result)
             sums = (root / "INSTALL_SHA256SUMS.txt").read_text(encoding="utf-8")
             self.assertIn("example.txt", sums)
             self.assertIn("INSTALL_PROVENANCE.json", sums)

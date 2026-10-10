@@ -16,7 +16,9 @@ POLICY = "request-priority-record-actual-allow-provider-standard"
 def block_prior_google_attempts(data_root: Path, site_id: str, wave_id: str) -> None:
     for version in ("2.0", "2.0.1", "2.0.2"):
         root = data_root / ("v" + version) / site_id / wave_id
-        for folder in ("api_raw", "failures"):
+        if (root / "metadata/first-dispatch-MIBO-SL-003.json").exists():
+            raise ValueError("prior Google dispatch exists; no Priority queue replay")
+        for folder in ("api_raw", "failures", "dispatch"):
             for path in (root / folder).glob("*.json"):
                 value = json.loads(path.read_text())
                 if not value.get("service_lineage_id"):
