@@ -18,7 +18,7 @@ def block_prior_google_attempts(data_root: Path, site_id: str, wave_id: str) -> 
         root = data_root / ("v" + version) / site_id / wave_id
         if (root / "metadata/first-dispatch-MIBO-SL-003.json").exists():
             raise ValueError("prior Google dispatch exists; no Standard restoration queue replay")
-        for folder in ("api_raw", "failures"):
+        for folder in ("api_raw", "failures", "dispatch"):
             for path in (root / folder).glob("*.json"):
                 value = json.loads(path.read_text())
                 if not value.get("service_lineage_id"):

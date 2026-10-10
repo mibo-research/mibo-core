@@ -153,6 +153,8 @@ class AdmissionTests(unittest.TestCase):
             rows = [next(r for r in checked[0] if r["service_lineage_id"] == sid and r["window_id"] == "STD") for sid in admission.INITIAL_SCOPE]
             stack.enter_context(mock.patch.object(executor, "preflight", return_value=(rows, *checked[1:])))
             stack.enter_context(mock.patch.dict(os.environ, {"MIBO_CORE_V2_EXECUTION": executor.EXECUTION_SENTINEL}))
+            clock = stack.enter_context(mock.patch.object(executor, "datetime", wraps=datetime))
+            clock.now.return_value = datetime(2026, 10, 6, 4, 0, tzinfo=timezone.utc)
             called = stack.enter_context(mock.patch.object(executor, "call_provider", side_effect=recovery_fixture.RecoveryTests().result))
             base = dest / "bundle"
             summary = executor.execute(protocol_path=base / built["protocol_file"],
