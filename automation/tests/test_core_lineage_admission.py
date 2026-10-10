@@ -153,6 +153,8 @@ class AdmissionTests(unittest.TestCase):
             rows = [next(r for r in checked[0] if r["service_lineage_id"] == sid and r["window_id"] == "STD") for sid in admission.INITIAL_SCOPE]
             stack.enter_context(mock.patch.object(executor, "preflight", return_value=(rows, *checked[1:])))
             stack.enter_context(mock.patch.dict(os.environ, {"MIBO_CORE_V2_EXECUTION": executor.EXECUTION_SENTINEL}))
+            clock = stack.enter_context(mock.patch.object(executor, "datetime", wraps=datetime))
+            clock.now.return_value = datetime(2026, 10, 6, 4, 0, tzinfo=timezone.utc)
             called = stack.enter_context(mock.patch.object(executor, "call_provider", side_effect=recovery_fixture.RecoveryTests().result))
             base = dest / "bundle"
             summary = executor.execute(protocol_path=base / built["protocol_file"],
@@ -232,6 +234,7 @@ class AdmissionTests(unittest.TestCase):
                 stack.enter_context(mock.patch("builtins.open", side_effect=[reader, writer]))
                 stack.enter_context(mock.patch.object(scoped, "UNIT_DIR", units))
                 stack.enter_context(mock.patch.object(scoped, "permissions"))
+                ownership = stack.enter_context(mock.patch.object(scoped.os, "chown"))
                 stack.enter_context(mock.patch.object(scoped.grp, "getgrnam", return_value=SimpleNamespace(gr_gid=os.getgid())))
                 stack.enter_context(mock.patch("pwd.getpwnam", return_value=SimpleNamespace(pw_uid=os.getuid(), pw_gid=os.getgid())))
                 run = stack.enter_context(mock.patch.object(scoped.subprocess, "run"))
@@ -246,6 +249,7 @@ class AdmissionTests(unittest.TestCase):
                         with self.assertRaisesRegex(ValueError, "human execution"):
                             scoped.authorize_and_start(out_dir=dest, built=built, data_root=Path(d) / "data", values=values)
                         run.assert_not_called()
+                        ownership.assert_not_called()
                         self.assertFalse((dest / "core_v2_execution_authorization.scoped.json").exists())
                     else:
                         scoped.authorize_and_start(out_dir=dest, built=built, data_root=Path(d) / "data", values=values)
@@ -257,6 +261,7 @@ class AdmissionTests(unittest.TestCase):
                         auth = json.loads((dest / "core_v2_execution_authorization.scoped.json").read_text())
                         self.assertEqual(auth["explicit_human_phrase"], phrase)
                         self.assertEqual(auth["admitted_lineages"], admission.INITIAL_SCOPE)
+                        ownership.assert_any_call(dest / "ready-three.env", 0, os.getgid())
 
 
 if __name__ == "__main__":

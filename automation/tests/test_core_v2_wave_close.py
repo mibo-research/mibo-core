@@ -147,8 +147,17 @@ class CloseTests(unittest.TestCase):
             return TTY("Synthetic Operations Lead\n") if file == "/dev/tty" else native_open(file, *args, **kwargs)
         out = io.StringIO()
         state = "ActiveState=inactive\nMainPID=0\nUnitFileState=disabled\nControlGroup=\nResult=success\nInactiveEnterTimestamp=synthetic\n"
-        with patch.object(close, "Path", routed_path), patch.object(close.subprocess, "check_output", return_value=state), patch.object(close.grp, "getgrnam", return_value=SimpleNamespace(gr_gid=os.getgid())), patch("builtins.open", side_effect=routed_open), patch.object(close.os, "sync"), redirect_stdout(out):
+        native_seal, native_stat = close.seal, Path.stat
+        def root_owned_stat(path, *args, **kwargs):
+            fields = list(native_stat(path, *args, **kwargs))
+            fields[4] = 0
+            return os.stat_result(fields)
+        def synthetic_seal(root, gid):
+            with patch.object(Path, "stat", new=root_owned_stat):
+                native_seal(root, gid)
+        with patch.object(close, "Path", routed_path), patch.object(close.subprocess, "check_output", return_value=state), patch.object(close.grp, "getgrnam", return_value=SimpleNamespace(gr_gid=os.getgid())), patch("builtins.open", side_effect=routed_open), patch.object(close.os, "sync"), patch.object(close.os, "geteuid", return_value=0), patch.object(close.os, "chown") as chown, patch.object(close, "seal", side_effect=synthetic_seal), redirect_stdout(out):
             close.main()
+            self.assertTrue(chown.called)
         self.assertIn("ARCHIVE_CONTENT_VERIFY=PASS", out.getvalue())
         self.assertIn("INDEPENDENT_BACKUP=PENDING", out.getvalue())
         self.assertNotIn("SYNTHETIC_PRIVATE", out.getvalue())
@@ -156,6 +165,17 @@ class CloseTests(unittest.TestCase):
             self.assertTrue((root / "closure/COMPLETION_RECORD.json").exists())
             self.assertFalse(any(p.stat().st_mode & 0o222 for p in [root] + list(root.rglob("*"))))
         self.assertEqual(len(list(private.glob("*/MIBO2-W01-sealed.tar.gz"))), 1)
+
+    def test_nonroot_refused_before_service_checks_or_signoff(self):
+        before = {p: p.read_bytes() for p in self.root.rglob("*") if p.is_file()}
+        with patch.object(close.os, "geteuid", return_value=65534), patch.object(close.subprocess, "check_output") as service, patch.object(close, "completion_name") as prompt, patch.object(close.os, "chown") as chown:
+            with self.assertRaisesRegex(ValueError, "Root"):
+                close.main()
+            service.assert_not_called()
+            prompt.assert_not_called()
+            chown.assert_not_called()
+        self.assertEqual({p: p.read_bytes() for p in self.root.rglob("*") if p.is_file()}, before)
+        self.assertFalse((self.root / "closure").exists())
 
 if __name__ == "__main__":
     unittest.main()

@@ -1,6 +1,7 @@
 """Synthetic-only Standard restoration, retained history and Google isolation."""
 from contextlib import ExitStack
 from dataclasses import replace
+from datetime import datetime, timezone
 from email.message import Message
 import json
 import os
@@ -190,6 +191,8 @@ class StandardRestorationTests(unittest.TestCase):
             row = next(r for r in checked[0] if r["window_id"] == "STD")
             stack.enter_context(mock.patch.object(executor, "preflight", return_value=([row], *checked[1:])))
             stack.enter_context(mock.patch.dict(os.environ, {"MIBO_CORE_V2_EXECUTION": executor.EXECUTION_SENTINEL}))
+            clock = stack.enter_context(mock.patch.object(executor, "datetime", wraps=datetime))
+            clock.now.return_value = datetime(2026, 10, 6, 4, 0, tzinfo=timezone.utc)
             called = stack.enter_context(mock.patch.object(executor, "call_provider", side_effect=self.result))
             summary = executor.execute(protocol_path=location / "bundle" / built["protocol_file"],
                 freeze_path=location / "bundle" / built["provider_freeze_file"],

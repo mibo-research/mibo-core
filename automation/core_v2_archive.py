@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 import hashlib
+import os
 from pathlib import Path
 from typing import Any
 
@@ -14,10 +15,50 @@ SCIENTIFIC_CLASS = "confirmatory_primary"
 
 
 def _write_exclusive(path: Path, data: bytes) -> str:
-    path.parent.mkdir(parents=True, exist_ok=True)
+    _mkdir_durable(path.parent)
     with path.open("xb") as fh:
         fh.write(data)
+        fh.flush()
+        os.fsync(fh.fileno())
+    # Persist the directory entry before a provider can be called. A partially
+    # retained exclusive file is deliberately left for fail-closed inspection.
+    directory_fd = os.open(path.parent, os.O_RDONLY)
+    try:
+        os.fsync(directory_fd)
+    finally:
+        os.close(directory_fd)
     return hashlib.sha256(data).hexdigest()
+
+
+def _mkdir_durable(path: Path) -> None:
+    """Persist new directory entries before retaining a dispatch intent."""
+    missing = []
+    current = path
+    while not current.exists():
+        missing.append(current)
+        current = current.parent
+    path.mkdir(parents=True, exist_ok=True)
+    for directory in dict.fromkeys([path] + [p.parent for p in missing]):
+        fd = os.open(directory, os.O_RDONLY)
+        try:
+            os.fsync(fd)
+        finally:
+            os.close(fd)
+
+
+def archive_dispatch(*, data_root: Path, row: dict[str, Any]) -> str:
+    """Durable intent before dispatch; an unresolved intent must never replay."""
+    fields = ("protocol_version", "attempt_id", "retry_of_attempt_id", "wave_id",
+              "site_id", "service_lineage_id", "provider", "query_form_id",
+              "protocol_file_sha256", "provider_freeze_sha256", "query_sha256")
+    record = {field: row.get(field) for field in fields}
+    record.update(scientific_class=SCIENTIFIC_CLASS,
+        model_id_requested=row.get("model_id"),
+        dispatch_at_utc=datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+        timestamp_kind="collector_dispatch_intent_before_provider_adapter")
+    root = wave_root(data_root, row["site_id"], row["wave_id"], row["protocol_version"])
+    return _write_exclusive(root / "dispatch" / (row["attempt_id"] + ".json"),
+                            canonical_json_bytes(record))
 
 
 def wave_root(data_root: Path, site_id: str, wave_id: str,

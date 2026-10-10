@@ -10,7 +10,9 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime, timezone
+from email.utils import parsedate_to_datetime
 import json
+import math
 import os
 import socket
 import time
@@ -67,13 +69,23 @@ def _utc_now() -> str:
     return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
 
 
-def _retry_after(headers: Any) -> int | None:
+def _retry_after(headers: Any, *, now: datetime | None = None) -> int | None:
     value = headers.get("Retry-After") if headers else None
     if not value:
         return None
     try:
         return max(0, int(value))
     except (TypeError, ValueError):
+        pass
+    try:
+        deadline = parsedate_to_datetime(value)
+        if deadline.tzinfo is None:
+            return None
+        current = now if now is not None else datetime.now(timezone.utc)
+        if current.tzinfo is None:
+            raise ValueError("Retry-After reference clock must include timezone")
+        return max(0, math.ceil((deadline - current).total_seconds()))
+    except (TypeError, ValueError, OverflowError):
         return None
 
 
