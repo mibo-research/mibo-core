@@ -79,11 +79,22 @@ class DurableExecutionTests(unittest.TestCase):
                 authorization_path=self.fixture.authorization, data_root=self.data_root)
 
     def restore(self, **kwargs):
+        kwargs.setdefault('current', self.clock)
         return state.restore(root=self.root, initial_rows=self.rows,
             clone_retry=executor._clone_retry_row,
             row_bounds=lambda row: executor._row_bounds(self.protocol, row),
             data_root=self.data_root,
             authorization_sha256=executor.sha256_file(self.fixture.authorization), **kwargs)
+
+    def capture(self, row=None, *, started=None, completed=None):
+        row = row or self.rows[0]
+        started = started or self.clock
+        completed = completed or started
+        return archive.archive_success(data_root=self.data_root, row=row,
+            request_payload={'model': row['model_id']}, response_json={'synthetic': True},
+            raw_response_text='synthetic response', http_status=200,
+            returned_model=row['model_id'], usage={}, started_at_utc=started.isoformat(),
+            completed_at_utc=completed.isoformat(), duration_ms=0)
 
     def failure(self, row, *, status=503, retry_after=None):
         return archive.archive_failure(data_root=self.data_root, row=row,
@@ -204,6 +215,164 @@ class DurableExecutionTests(unittest.TestCase):
             self.execute()
         self.assertEqual(self.calls, [])
 
+    def test_capture_technical_identity_and_http_mutations_stop_before_calls(self):
+        self.capture()
+        path = self.root / 'metadata' / (self.rows[0]['attempt_id'] + '.json')
+        original = json.loads(path.read_text())
+        changes = {
+            'http_status': 503, 'query_sha256': '0' * 64,
+            'protocol_file_sha256': '0' * 64, 'provider_freeze_sha256': '0' * 64,
+            'window_id': 'WB', 'service_lineage_id': 'MIBO-SL-001',
+            'query_form_id': self.rows[1]['query_form_id'],
+            'protocol_registration_id': 'foreign-registration', 'wave_id': 'MIBO2-W02',
+            'model_id_requested': 'foreign-model', 'attempt': 2,
+        }
+        for key, value in changes.items():
+            if value == original.get(key):
+                value = 'foreign-query-form'
+            with self.subTest(key=key):
+                path.write_text(json.dumps(dict(original, **{key: value})))
+                with self.assertRaises(ValueError):
+                    self.execute()
+                self.assertEqual(self.calls, [])
+        path.write_text(json.dumps(original))
+        self.assertIn(self.rows[0]['attempt_id'], self.restore(persist=False).done)
+
+    def test_capture_timing_mutations_stop_before_calls(self):
+        self.capture()
+        path = self.root / 'metadata' / (self.rows[0]['attempt_id'] + '.json')
+        original = json.loads(path.read_text())
+        for values in (
+            {'started_at_utc': (self.start - timedelta(seconds=1)).isoformat()},
+            {'started_at_utc': self.close.isoformat(), 'completed_at_utc': self.close.isoformat()},
+            {'completed_at_utc': (self.start - timedelta(seconds=1)).isoformat()},
+            {'completed_at_utc': (self.clock + timedelta(seconds=1)).isoformat()},
+            {'started_at_utc': self.start.replace(tzinfo=None).isoformat()},
+        ):
+            with self.subTest(values=values):
+                path.write_text(json.dumps(dict(original, **values)))
+                with self.assertRaises(ValueError):
+                    self.execute()
+                self.assertEqual(self.calls, [])
+
+    def test_legacy_capture_is_retained_but_cannot_authorize_restart(self):
+        self.capture()
+        path = self.root / 'metadata' / (self.rows[0]['attempt_id'] + '.json')
+        data = json.loads(path.read_text())
+        del data['technical_metadata_version']
+        path.write_text(json.dumps(data))
+        raw = self.root / data['raw_file']
+        before = raw.read_bytes()
+        with self.assertRaisesRegex(state.LegacyCaptureMetadataError, 'legacy capture'):
+            self.execute()
+        self.assertEqual(self.calls, [])
+        self.assertEqual(raw.read_bytes(), before)
+
+    def test_capture_validation_never_decodes_raw_response(self):
+        self.capture()
+        path = self.root / 'metadata' / (self.rows[0]['attempt_id'] + '.json')
+        data = json.loads(path.read_text())
+        raw = self.root / data['raw_file']
+        raw.write_bytes(b'\xff\x00synthetic opaque non-JSON response')
+        data['raw_file_sha256'] = hashlib.sha256(raw.read_bytes()).hexdigest()
+        path.write_text(json.dumps(data))
+        self.assertIn(self.rows[0]['attempt_id'], self.restore(persist=False).done)
+
+    def test_post_close_completion_is_valid_when_dispatch_started_in_window(self):
+        self.capture(started=self.close - timedelta(seconds=1),
+                     completed=self.close + timedelta(seconds=1))
+        restored = self.restore(persist=False, current=self.close + timedelta(seconds=2))
+        self.assertIn(self.rows[0]['attempt_id'], restored.done)
+
+    def test_invalid_new_capture_stops_before_next_provider_call_and_keeps_raw(self):
+        def bad_transport(**kwargs):
+            result = self.result(**kwargs)
+            result.http_status = 503
+            return result
+        with self.assertRaisesRegex(ValueError, 'HTTP status'):
+            self.execute(bad_transport)
+        self.assertEqual(self.calls, [('Google', self.start)])
+        self.assertTrue((self.root / 'api_raw' / (self.rows[0]['attempt_id'] + '.json')).exists())
+        with self.assertRaisesRegex(ValueError, 'HTTP status'):
+            self.execute()
+        self.assertEqual(self.calls, [('Google', self.start)])
+
+    def test_foreign_failure_identity_is_rejected_before_calls_or_repair_writes(self):
+        self.failure(self.rows[0])
+        path = self.root / 'failures' / (self.rows[0]['attempt_id'] + '.json')
+        original = json.loads(path.read_text())
+        changes = {'site_id': 'JP02', 'wave_id': 'MIBO2-W02', 'provider': 'OpenAI',
+                   'protocol_registration_id': 'foreign-registration', 'line_id': 'foreign-line',
+                   'query_form_id': 'foreign-query', 'query_sha256': '0' * 64,
+                   'replication': original['replication'] + 1, 'attempt': 2, 'window_id': 'WB'}
+        for key, value in changes.items():
+            with self.subTest(key=key):
+                path.write_text(json.dumps(dict(original, **{key: value})))
+                with self.assertRaises(ValueError):
+                    self.execute()
+                self.assertEqual(self.calls, [])
+                self.assertFalse((self.root / 'metadata').exists())
+                self.assertFalse((self.root / 'deviations').exists())
+
+    def test_early_retry_capture_failure_and_claim_are_rejected_before_calls(self):
+        self.failure(self.rows[0])
+        retry = executor._clone_retry_row(self.rows[0], 2)
+        self.clock += timedelta(minutes=5)
+        for kind in ('capture', 'failure', 'claim'):
+            with self.subTest(kind=kind):
+                if kind == 'capture':
+                    self.capture(retry)
+                elif kind == 'failure':
+                    self.failure(retry)
+                else:
+                    state.claim_attempt(self.root, retry,
+                        authorization_sha256=executor.sha256_file(self.fixture.authorization),
+                        dispatched_at=self.clock)
+                with self.assertRaisesRegex(ValueError, 'protocol-eligible due'):
+                    self.execute()
+                self.assertEqual(self.calls, [])
+                self.assertFalse(list((self.root / 'metadata').glob('retry-link-*.json')))
+                self.assertFalse((self.root / 'deviations').exists())
+                for folder in ('metadata', 'api_raw', 'failures', 'dispatch'):
+                    path = self.root / folder / (retry['attempt_id'] + '.json')
+                    if path.exists():
+                        path.unlink()
+
+    def test_future_failure_and_claim_reject_before_calls(self):
+        self.failure(self.rows[0])
+        path = self.root / 'failures' / (self.rows[0]['attempt_id'] + '.json')
+        data = json.loads(path.read_text())
+        data['failed_at_utc'] = (self.clock + timedelta(seconds=1)).isoformat()
+        path.write_text(json.dumps(data))
+        with self.assertRaisesRegex(ValueError, 'future'):
+            self.execute()
+        self.assertEqual(self.calls, [])
+        path.unlink()
+        state.claim_attempt(self.root, self.rows[0],
+            authorization_sha256=executor.sha256_file(self.fixture.authorization),
+            dispatched_at=self.clock + timedelta(seconds=1))
+        with self.assertRaisesRegex(ValueError, 'registered/current bounds'):
+            self.execute()
+        self.assertEqual(self.calls, [])
+
+    def test_dispatch_claim_must_precede_terminal_capture_or_failure(self):
+        self.capture()
+        state.claim_attempt(self.root, self.rows[0],
+            authorization_sha256=executor.sha256_file(self.fixture.authorization),
+            dispatched_at=self.clock + timedelta(seconds=1))
+        self.clock += timedelta(seconds=2)
+        with self.assertRaisesRegex(ValueError, 'predates dispatch claim'):
+            self.execute()
+        self.assertEqual(self.calls, [])
+        for folder in ('metadata', 'api_raw'):
+            (self.root / folder / (self.rows[0]['attempt_id'] + '.json')).unlink()
+        self.clock = self.start
+        self.failure(self.rows[0])
+        self.clock += timedelta(seconds=2)
+        with self.assertRaisesRegex(ValueError, 'predates dispatch claim'):
+            self.execute()
+        self.assertEqual(self.calls, [])
+
     def test_lock_blocks_second_executor_and_is_released_after_exception(self):
         with state.wave_lock(self.root):
             with self.assertRaisesRegex(RuntimeError, 'wave lock'):
@@ -288,6 +457,25 @@ class DurableExecutionTests(unittest.TestCase):
                     pass
             with state.lineage_locks(self.data_root, 'JP01', 'MIBO2-W01', {'MIBO-SL-001'}):
                 pass
+
+    def test_cross_namespace_identity_cannot_hide_google_as_other_lineage(self):
+        self.rows = self.rows[:1]
+        other = archive.wave_root(self.data_root, 'JP01', 'MIBO2-W01', '2.0.4')
+        aid = self.rows[0]['attempt_id']
+        for folder in ('failures', 'metadata', 'dispatch'):
+            with self.subTest(folder=folder):
+                path = other / folder / (aid + '.json')
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_text(json.dumps({'attempt_id': aid, 'service_lineage_id': 'MIBO-SL-001'}))
+                with self.assertRaisesRegex(ValueError, 'filename/lineage conflict'):
+                    self.execute()
+                self.assertEqual(self.calls, [])
+                path.write_text(json.dumps({'attempt_id': self.rows[0]['attempt_id'] + '-foreign',
+                                            'service_lineage_id': self.rows[0]['service_lineage_id']}))
+                with self.assertRaisesRegex(ValueError, 'filename/identity conflict'):
+                    self.execute()
+                self.assertEqual(self.calls, [])
+                path.unlink()
 
     def test_priority_and_standard_migration_guards_recognize_unresolved_claim(self):
         import core_v2_priority

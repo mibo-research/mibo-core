@@ -97,14 +97,16 @@ def build_report(*, protocol_path: Path, manifest_path: Path, freeze_path: Path,
     # Share the strict recovery validator without its repair writes. This also
     # checks retry timing, parent failures, pause state and claim provenance.
     try:
-        from core_v2_execution_state import restore
+        from core_v2_execution_state import LegacyCaptureMetadataError, restore
         from core_v2_executor import _clone_retry_row, _row_bounds
         retained = restore(root=root, initial_rows=rows, clone_retry=_clone_retry_row,
                            row_bounds=lambda row: _row_bounds(protocol, row), data_root=data_root,
                            authorization_sha256=_sha(authorization_path) if authorization_path else None,
-                           persist=False)
+                           persist=False, current=now)
         suspended.update(retained.suspended)
         uncertain.update(attempts[aid][0]["attempt_id"] for aid in retained.uncertain)
+    except LegacyCaptureMetadataError:
+        errors.append("legacy capture lacks complete technical metadata; retained data cannot be counted or automatically resent")
     except (OSError, ValueError, TypeError, KeyError):
         errors.append("retained execution state could not be verified")
     if root.exists() and any(p.is_symlink() or not (p.is_file() or p.is_dir())
@@ -131,7 +133,7 @@ def build_report(*, protocol_path: Path, manifest_path: Path, freeze_path: Path,
                     if (value.get("protocol_version") != protocol["protocol_version"]
                             or value.get("retry_of_attempt_id") != parent):
                         raise ValueError("attempt binding")
-                    if value.get("service_lineage_id", row["service_lineage_id"]) != row["service_lineage_id"]:
+                    if value.get("service_lineage_id") != row["service_lineage_id"]:
                         raise ValueError("lineage binding")
                     seen.add(aid)
                     if folder == "metadata":

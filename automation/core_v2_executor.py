@@ -264,6 +264,10 @@ def _block_other_namespace_attempts(data_root: Path, rows: list[dict[str, Any]])
     services = v1._services()
     prefixes = {f"MIBO2-SITE-{site}-{wave.replace('MIBO2-', '')}-{service['short_id']}-{runner.LINE_ID}-":
                 service['service_lineage_id'] for service in services}
+    known_attempt_lineages = {}
+    for row in rows:
+        for attempt in (row, _clone_retry_row(row, 2), _clone_retry_row(_clone_retry_row(row, 2), 3)):
+            known_attempt_lineages[attempt['attempt_id']] = attempt['service_lineage_id']
     for other_version in sorted(runner.SUPPORTED_PROTOCOL_VERSIONS - {version}):
         other = archive.wave_root(data_root, site, wave, other_version)
         for lineage in lineages:
@@ -275,12 +279,18 @@ def _block_other_namespace_attempts(data_root: Path, rows: list[dict[str, Any]])
             for path in (other / folder).glob('*.json'):
                 if folder == 'metadata' and path.name.startswith(('retry-link-', 'first-dispatch-')):
                     continue
+                filename_sid = known_attempt_lineages.get(path.stem) or next(
+                    (sid for prefix, sid in prefixes.items() if path.stem.startswith(prefix)), None)
                 if folder == 'api_raw':
-                    sid = next((sid for prefix, sid in prefixes.items() if path.stem.startswith(prefix)), None)
+                    sid = filename_sid
                 else:
                     record = execution_state._read(path)
-                    sid = record.get('service_lineage_id') or next(
-                        (sid for prefix, sid in prefixes.items() if path.stem.startswith(prefix)), None)
+                    if record.get('attempt_id') != path.stem:
+                        raise ValueError("other namespace retained attempt filename/identity conflict")
+                    embedded_sid = record.get('service_lineage_id')
+                    if embedded_sid is not None and embedded_sid != filename_sid:
+                        raise ValueError("other namespace retained attempt filename/lineage conflict")
+                    sid = filename_sid
                 if sid is None:
                     raise ValueError("other namespace retained attempt cannot be classified by lineage")
                 if sid in lineages:
@@ -324,7 +334,8 @@ def _execute_locked(*, protocol_path: Path, manifest_path: Path,
     protocol, _ = runner.load_protocol(protocol_path)
     restored = execution_state.restore(root=root, initial_rows=rows,
         clone_retry=_clone_retry_row, row_bounds=lambda row: _row_bounds(protocol, row),
-        data_root=data_root, authorization_sha256=authorization_digest)
+        data_root=data_root, authorization_sha256=authorization_digest,
+        current=datetime.now(timezone.utc))
     done = restored.done
     now = datetime.now(timezone.utc)
     queue: list[tuple[datetime, int, str, dict[str, Any]]] = [
@@ -416,6 +427,7 @@ def _execute_locked(*, protocol_path: Path, manifest_path: Path,
             continue
         if any(sha256_file(path) != digest for path, digest in pinned_inputs.items()):
             raise ValueError("frozen execution input changed before dispatch")
+        dispatched_at = current
         execution_state.claim_attempt(root, row,
             authorization_sha256=authorization_digest,
             dispatched_at=current)
@@ -509,7 +521,7 @@ def _execute_locked(*, protocol_path: Path, manifest_path: Path,
                     protocol_version=row["protocol_version"],
                 )
             continue
-        archive.archive_success(
+        capture = archive.archive_success(
             data_root=data_root, row=row, request_payload=result.request_payload,
             response_json=result.response_json, raw_response_text=result.raw_response_text,
             http_status=result.http_status, returned_model=result.returned_model,
@@ -517,6 +529,12 @@ def _execute_locked(*, protocol_path: Path, manifest_path: Path,
             completed_at_utc=result.completed_at_utc, duration_ms=result.duration_ms,
             response_metadata=result.response_metadata,
         )
+        # Retain the provider bytes first, then stop before another request if
+        # their technical sidecar cannot prove a protocol-eligible capture.
+        execution_state.validate_capture(capture, row,
+            bounds=_row_bounds(protocol, row), current=datetime.now(timezone.utc),
+            retry_due=due if int(row["attempt"]) > 1 else None,
+            dispatched_at=dispatched_at)
         if recovery_attempt.get(lineage) == row["attempt_id"]:
             recovery_attempt.pop(lineage)
         summary["valid"] += 1

@@ -190,28 +190,20 @@ class AgentAmendmentTests(unittest.TestCase):
     def test_environment_mismatch_suspends_remaining_lineage_queue(self):
         with tempfile.TemporaryDirectory() as d:
             root = Path(d)
-            rows = [{'protocol_version': '2.0.1', 'site_id': 'JP01', 'wave_id': 'MIBO2-W01',
-                     'service_lineage_id': 'MIBO-SL-004', 'execution_order': n,
-                     'attempt_id': f'synthetic-{n}', 'attempt': 1,
-                     'provider': 'Perplexity AI', 'model_id': 'perplexity/synthetic',
-                     'query_form_id': 'synthetic-form'} for n in (1, 2)]
-            start = datetime(2026, 1, 1, tzinfo=timezone.utc)
-            close = datetime(2099, 1, 1, tzinfo=timezone.utc)
-            # The real executor now durably binds each dispatch to its private
-            # authorization record before calling a provider.
-            (root / 'unused').write_text('{}', encoding='utf-8')
+            fixture = AgentFixture(root)
+            checked = fixture.check()
+            rows = [row for row in checked[0] if row['service_lineage_id'] == 'MIBO-SL-004'
+                    and row['window_id'] == 'STD'][:2]
             with mock.patch.dict(os.environ, {'MIBO_CORE_V2_EXECUTION': executor.EXECUTION_SENTINEL}), \
-                 mock.patch.object(executor, 'preflight', return_value=(rows, {'core_api': {
-                     'MIBO-SL-004': {'request_profile': {}}}}, {}, start, close)), \
-                 mock.patch.object(runner, 'load_protocol', return_value=({}, 'synthetic')), \
-                 mock.patch.object(executor, '_prompt_map', return_value={'synthetic-form': 'synthetic'}), \
-                 mock.patch.object(executor, '_row_bounds', return_value=(start, close)), \
+                 mock.patch.object(executor, 'preflight', return_value=(rows, *checked[1:])), \
+                 mock.patch.object(executor, 'datetime', wraps=datetime) as clock, \
                  mock.patch.object(archive, 'archive_failure') as failure, \
                  mock.patch.object(archive, 'write_deviation') as deviation, \
                  mock.patch.object(executor, 'call_provider', side_effect=AdapterFailure(
                      kind='request_environment_mismatch', message='synthetic mismatch')) as call:
-                result = executor.execute(protocol_path=root / 'unused', manifest_path=root / 'unused',
-                    freeze_path=root / 'unused', authorization_path=root / 'unused', data_root=root / 'data')
+                clock.now.return_value = datetime(2026, 10, 6, 12, tzinfo=timezone.utc)
+                result = executor.execute(protocol_path=fixture.protocol, manifest_path=fixture.manifest,
+                    freeze_path=fixture.freeze, authorization_path=fixture.authorization, data_root=root / 'data')
             self.assertEqual(call.call_count, 1)
             self.assertEqual(result['retries_scheduled'], 0)
             self.assertEqual(result['skipped_after_suspension'], 1)

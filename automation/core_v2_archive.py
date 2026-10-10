@@ -13,6 +13,25 @@ from raw_archive import canonical_json_bytes
 
 PROTOCOL_VERSION = "2.0"
 SCIENTIFIC_CLASS = "confirmatory_primary"
+# A separate technical sidecar permits identity/timing validation without
+# decoding the restricted response envelope. Earlier capture sidecars do not
+# provide enough evidence for safe automatic restart or completion signoff.
+TECHNICAL_CAPTURE_VERSION = 1
+CAPTURE_IDENTITY_FIELDS = (
+    "protocol_version", "protocol_registration_id", "scientific_class",
+    "observation_surface", "environment_class", "attempt_id",
+    "retry_of_attempt_id", "wave_id", "site_id", "service_lineage_id",
+    "service_name", "provider", "line_id", "query_form_id", "item_id",
+    "language", "anchor", "window_id", "replication", "attempt",
+    "execution_order", "random_seed", "query_sha256", "protocol_file_sha256",
+    "provider_freeze_sha256",
+)
+FAILURE_IDENTITY_FIELDS = (
+    "protocol_version", "scientific_class", "attempt_id", "retry_of_attempt_id",
+    "protocol_registration_id", "wave_id", "site_id", "service_lineage_id",
+    "provider", "line_id", "query_form_id", "window_id", "replication",
+    "attempt", "query_sha256",
+)
 
 
 def _write_exclusive(path: Path, data: bytes) -> str:
@@ -91,20 +110,20 @@ def archive_success(*, data_root: Path, row: dict[str, Any], request_payload: di
     raw_path = root / "api_raw" / f"{observation_id}.json"
     raw_hash = _write_exclusive(raw_path, canonical_json_bytes(envelope))
     metadata = {
-        "protocol_version": version,
-        "scientific_class": SCIENTIFIC_CLASS,
+        **{key: envelope[key] for key in CAPTURE_IDENTITY_FIELDS},
+        "technical_metadata_version": TECHNICAL_CAPTURE_VERSION,
         "observation_id": observation_id,
-        "attempt_id": row["attempt_id"],
-        "retry_of_attempt_id": row.get("retry_of_attempt_id"),
+        "model_id_requested": row["model_id"],
+        "model_id_returned": returned_model,
+        "http_status": http_status,
+        "started_at_utc": started_at_utc,
+        "completed_at_utc": completed_at_utc,
+        "duration_ms": duration_ms,
         "raw_file": str(raw_path.relative_to(root)),
         "raw_file_sha256": raw_hash,
         "captured_at_utc": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
         "status": "valid_confirmatory_api_capture",
     }
-    if version in {"2.0.2", "2.0.3", "2.0.4"}:
-        metadata.update(service_lineage_id=row["service_lineage_id"],
-            window_id=row["window_id"], started_at_utc=started_at_utc,
-            completed_at_utc=completed_at_utc)
     if response_metadata is not None:
         metadata["response_metadata"] = response_metadata
     meta_path = root / "metadata" / f"{observation_id}.json"

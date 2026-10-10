@@ -54,6 +54,7 @@ Latent defects found in source are distinguished from incidents observed in W01.
 | Latent restart forgot suspension and provider pause | Restore technical failure/retry/suspension state from retained records | Restart after503 exhaustion sends no further affected-lineage requests; retained Retry-After/minimum delays preserved |
 | Latent crash/concurrent dispatch could duplicate calls | Durable pre-dispatch claims and execution locks; ambiguous attempts hold their lineage | Crash before archival, raw-only capture, corrupt state, duplicate executor and interrupted retry-link writes tested |
 | Latent version switching could replay an uncertain dispatch; clock rollback could shorten a retry wait | Cross-version lineage locks and retained-claim guards; recheck real UTC and pinned inputs before adapter dispatch | Nonoverlapping scopes can run; overlapping scopes/replay, clock backstep, input changes and close during durable writes rejected |
+| A checksum alone does not prove that a capture belongs to the frozen request or started in its registered window | Bind new technical capture metadata to the regenerated row, HTTP status and request times; use a separate offline audit of retained technical envelopes | Wrong query/model/freeze identity, non-2xx capture, reversed times and early retry are rejected; completion after close is permitted when the request started within its registered window |
 | Latent HTTP-date Retry-After was ignored | Parse date and round remaining seconds upward | Long provider wait extends minimum delay; out-of-window retry rejected |
 | Latent installed-source verification accepted empty/partial/unsafe checksum lists | Validate complete source payload, hashes, commit and safe paths | Empty/partial manifests, uncovered code/bytecode, dirty provenance, links and path escapes rejected |
 | W01 closure was tied to280 and calibration windows | Separate generic offline close derives counts from frozen manifest/scope, retains missingness, requires real terminal sign-off | W02 STD240/provider, incomplete captures, stopped collectors, candidate-export failures and archive integrity tested |
@@ -64,6 +65,14 @@ execution remains visible and does not trigger model substitution, another
 recovery block or missing-data replacement. Max two retries, minimum10 minutes
 then an additional30 minutes, provider longer waits and registered windows stay
 unchanged. Valid refusals/nonanswers remain observations.
+
+New collectors retain the technical identity, HTTP status and timing needed for
+content-blind restart/status verification alongside each raw-file checksum.
+Older capture metadata that lacks this evidence is conservatively rejected by
+the new collector; the retained response is never automatically resent or
+rewritten. The separate offline audit can inspect historical technical envelope
+fields without interpreting response text. W01 remains under its original
+pinned collector and closure helper.
 
 ## Controlled-VM preparation
 
@@ -162,6 +171,13 @@ unverified integrity. A complete Google-only namespace is not a complete wave:
 inspect `completion_scope`, `intended_panel_cells`,
 `registered_panel_fully_included` and the other scopes separately.
 
+For a separate cross-namespace inspection, follow
+[W02_AUDIT_TOOL.md](W02_AUDIT_TOOL.md). Supply the full registered baseline and
+explicit authorized version/lineage assignments. The offline audit checks
+technical raw-envelope fields and hashes, reports duplicate captures across
+versions and distinguishes missing evidence from proven submission. It makes
+no content-validity, comparability or independent-backup decision.
+
 The VM, disks, network, clock synchronization and W02 units must remain running.
 The operator's computer is not the scheduler. Check cloud restart/maintenance
 settings and services after any reboot; unexpected uncertain claims require
@@ -170,7 +186,10 @@ human review, not automatic resend.
 ## Close, independent backup and restored-copy check
 
 After5 November09:00 JST, stop and disable **every W02 collector scope**, then
-verify MainPID0 and no collector/cgroup processes. Run the new offline helper
+verify MainPID0 and no collector/cgroup processes. Set each collector's private
+`MIBO_CORE_V2_EXECUTION` environment value to `DISABLED` after stopping it and
+retain the resulting configuration hash. This prevents an accidental manual
+restart from leaving an armed execution sentinel. Run the new offline helper
 first without `--close`, supplying the exact collector units:
 
 ```bash

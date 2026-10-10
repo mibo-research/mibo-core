@@ -243,7 +243,8 @@ def load_unit(unit: str, wave: str, site: str, now: datetime) -> dict[str, Any]:
         raise CloseError("Bound inputs changed during closure configuration validation")
     return dict(unit=unit, state=state, root=root, data_root=data_root.resolve(), rows=rows, admitted=list(admitted),
         inputs=inputs, hashes=hashes, bounds=bounds, protocol=protocol,
-        source=source, source_commit=provenance["commit_sha"], bound_files=bound_files)
+        source=source, source_commit=provenance["commit_sha"], bound_files=bound_files,
+        inspection_clock=now.astimezone(timezone.utc))
 
 
 def inspect(config: dict[str, Any]) -> dict[str, Any]:
@@ -262,7 +263,8 @@ def inspect(config: dict[str, Any]) -> dict[str, Any]:
     restored_state = execution_state.restore(root=root, initial_rows=rows,
         clone_retry=executor._clone_retry_row,
         row_bounds=lambda row: executor._row_bounds(config["protocol"], row),
-        data_root=root.parents[2], authorization_sha256=config["hashes"]["authorization"], persist=False)
+        data_root=root.parents[2], authorization_sha256=config["hashes"]["authorization"],
+        persist=False, current=config["inspection_clock"])
     captured, failed, uncertain, seen, raw_references = set(), set(), set(), set(), set()
     counts = Counter()
     for folder, kind in (("metadata", "capture"), ("failures", "failure"), ("dispatch", "dispatch")):

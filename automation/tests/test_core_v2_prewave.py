@@ -108,9 +108,10 @@ class CoreV2PrewaveTests(unittest.TestCase):
         self.fixture.manifest.unlink()
         runner.write_csv(rows, self.fixture.manifest)
         self.fixture.rehash_auth()
-        self.assertEqual(runner.validate_manifest(rows, protocol_path=self.fixture.protocol,
-                                                freeze_path=self.fixture.freeze), [])
-        with self.assertRaisesRegex(ValueError, "strict deterministic"):
+        errors = runner.validate_manifest(rows, protocol_path=self.fixture.protocol,
+                                          freeze_path=self.fixture.freeze)
+        self.assertTrue(any("deterministic manifest execution_order" in error for error in errors))
+        with self.assertRaisesRegex(ValueError, "deterministic manifest execution_order"):
             self.check()
 
     def test_unsigned_template_future_signature_and_hash_drift_fail(self):

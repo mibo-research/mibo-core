@@ -115,6 +115,8 @@ class GenericCloseTests(unittest.TestCase):
         row = row or self.rows[0]
         bounds = runner.wave(runner.load_protocol(self.fixture.protocol)[0], "MIBO2-W02")
         started = runner.parse_aware_utc(bounds["start_utc"]) + timedelta(minutes=5)
+        if int(row["attempt"]) > 1:
+            started += timedelta(minutes=10 if int(row["attempt"]) == 2 else 40)
         return archive.archive_success(data_root=self.data, row=row,
             request_payload={"synthetic": True}, response_json={"answer": "SYNTHETIC_PRIVATE_ANSWER"},
             raw_response_text="SYNTHETIC_PRIVATE_ANSWER", http_status=200, returned_model=row["model_id"], usage={},

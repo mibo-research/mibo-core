@@ -7,6 +7,7 @@ import pty
 import tempfile
 import unittest
 from contextlib import redirect_stdout
+from datetime import datetime, timezone
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
@@ -120,6 +121,14 @@ class CloseTests(unittest.TestCase):
         finally:
             os.close(master)
             os.close(slave)
+    def test_nonroot_close_is_refused_before_review_or_data_writes(self):
+        with patch.object(close.os, "geteuid", return_value=1000), patch.object(close.subprocess, "check_output") as state, patch.object(close, "completion_name") as signoff:
+            with self.assertRaisesRegex(ValueError, "Root and completed registered field window"):
+                close.main()
+        state.assert_not_called()
+        signoff.assert_not_called()
+        self.assertFalse((self.root / "closure").exists())
+        self.assertFalse((self.root / "SHA256SUMS.txt").exists())
     def test_full_offline_close_and_archive(self):
         others = set(close.LABELS) - self.admitted
         root2, _, inputs2, _ = fixture(self.base, "2.0.2", others, True)
@@ -147,7 +156,15 @@ class CloseTests(unittest.TestCase):
             return TTY("Synthetic Operations Lead\n") if file == "/dev/tty" else native_open(file, *args, **kwargs)
         out = io.StringIO()
         state = "ActiveState=inactive\nMainPID=0\nUnitFileState=disabled\nControlGroup=\nResult=success\nInactiveEnterTimestamp=synthetic\n"
-        with patch.object(close, "Path", routed_path), patch.object(close.subprocess, "check_output", return_value=state), patch.object(close.grp, "getgrnam", return_value=SimpleNamespace(gr_gid=os.getgid())), patch("builtins.open", side_effect=routed_open), patch.object(close.os, "sync"), redirect_stdout(out):
+        def synthetic_seal(root, _gid):
+            # CI operates only on this test's owned fixtures. Preserve the
+            # read-only assertions without changing ownership on the test host.
+            self.assertTrue(root.is_relative_to(self.base))
+            for path in [*root.rglob("*"), root]:
+                self.assertEqual(path.stat().st_uid, os.getuid())
+                path.chmod(0o550 if path.is_dir() else 0o440)
+        with patch.object(close, "Path", routed_path), patch.object(close.subprocess, "check_output", return_value=state), patch.object(close.grp, "getgrnam", return_value=SimpleNamespace(gr_gid=os.getgid())), patch("builtins.open", side_effect=routed_open), patch.object(close.os, "sync"), patch.object(close.os, "geteuid", return_value=0), patch.object(close, "seal", side_effect=synthetic_seal), patch.object(close, "datetime", wraps=datetime) as clock, redirect_stdout(out):
+            clock.now.return_value = datetime(2030, 1, 1, tzinfo=timezone.utc)
             close.main()
         self.assertIn("ARCHIVE_CONTENT_VERIFY=PASS", out.getvalue())
         self.assertIn("INDEPENDENT_BACKUP=PENDING", out.getvalue())

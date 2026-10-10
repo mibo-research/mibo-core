@@ -27,6 +27,10 @@ SUSPENSION_TYPES = {
 }
 
 
+class LegacyCaptureMetadataError(ValueError):
+    """Retained bytes exist but their older sidecar cannot prove eligibility."""
+
+
 def _read(path: Path) -> dict[str, Any]:
     if path.is_symlink() or not path.is_file():
         raise ValueError("retained execution state is not a regular file")
@@ -151,18 +155,57 @@ class ResumeState:
     recovery_attempt: dict[str, str] = field(default_factory=dict)
 
 
+def _bind_fields(data: dict[str, Any], row: dict[str, Any], keys: tuple[str, ...],
+                 label: str) -> None:
+    for key in keys:
+        expected = row.get(key)
+        if key not in data or data[key] != expected or type(data[key]) is not type(expected):
+            raise ValueError("retained " + label + " frozen-input identity mismatch: " + key)
+
+
 def _bind(data: dict[str, Any], row: dict[str, Any], *, claim: bool = False) -> None:
-    for key in ("protocol_version", "attempt_id"):
-        if data.get(key) != row[key]:
-            raise ValueError("retained attempt protocol/identity mismatch")
-    for key in ("service_lineage_id", "window_id", "retry_of_attempt_id"):
-        if key in data and data.get(key) != row.get(key):
-            raise ValueError("retained attempt lineage/window/parent mismatch")
+    keys = ("protocol_version", "attempt_id", "service_lineage_id", "window_id",
+            "retry_of_attempt_id")
     if claim:
-        for key in ("site_id", "wave_id", "model_id", "query_sha256",
-                    "protocol_file_sha256", "provider_freeze_sha256"):
-            if data.get(key) != row.get(key):
-                raise ValueError("retained dispatch frozen-input identity mismatch")
+        keys += ("site_id", "wave_id", "model_id", "query_sha256",
+                 "protocol_file_sha256", "provider_freeze_sha256")
+    _bind_fields(data, row, keys, "dispatch" if claim else "attempt")
+
+
+def validate_capture(data: dict[str, Any], row: dict[str, Any], *,
+                     bounds: tuple[datetime, datetime], current: datetime,
+                     retry_due: datetime | None = None,
+                     dispatched_at: datetime | None = None) -> tuple[datetime, datetime]:
+    """Validate technical evidence only; the restricted raw JSON stays opaque.
+
+    A valid dispatch may finish after the row closes. Its recorded start must
+    remain inside that row's registered window and at or after its retry due.
+    Older incomplete sidecars remain retained, but cannot be counted or resent.
+    """
+    if (type(data.get("technical_metadata_version")) is not int or
+            data["technical_metadata_version"] != archive.TECHNICAL_CAPTURE_VERSION):
+        raise LegacyCaptureMetadataError(
+            "legacy capture lacks complete technical metadata; retain without automatic resend")
+    _bind_fields(data, row, archive.CAPTURE_IDENTITY_FIELDS, "capture")
+    if (data.get("observation_id") != row["attempt_id"] or
+            data.get("model_id_requested") != row["model_id"]):
+        raise ValueError("retained capture observation/model identity mismatch")
+    if type(data.get("http_status")) is not int or not 200 <= data["http_status"] < 300:
+        raise ValueError("retained capture HTTP status is not successful")
+    started = _utc(data.get("started_at_utc"))
+    completed = _utc(data.get("completed_at_utc"))
+    start, close = bounds
+    if not start <= started < close:
+        raise ValueError("retained capture start outside registered row window")
+    if completed < started:
+        raise ValueError("retained capture completion precedes start")
+    if completed > current:
+        raise ValueError("retained capture timestamp is in the future")
+    if retry_due is not None and started < retry_due:
+        raise ValueError("retained retry capture starts before protocol-eligible due")
+    if dispatched_at is not None and started < dispatched_at:
+        raise ValueError("retained capture start predates dispatch claim")
+    return started, completed
 
 
 def claim_attempt(root: Path, row: dict[str, Any], *, authorization_sha256: str,
@@ -202,18 +245,24 @@ def restore(*, root: Path, initial_rows: list[dict[str, Any]],
             clone_retry: Callable[[dict[str, Any], int], dict[str, Any]],
             row_bounds: Callable[[dict[str, Any]], tuple[datetime, datetime]],
             data_root: Path, authorization_sha256: str | None,
-            persist: bool = True) -> ResumeState:
+            persist: bool = True, current: datetime | None = None) -> ResumeState:
     """Reconstruct only protocol-eligible retries from retained technical state.
 
     The failure is the authority. A missing retry link can be written again
     deterministically after a crash between the failure and link writes. A
     malformed/mismatched existing link fails closed and is never overwritten.
     """
+    now = current if current is not None else datetime.now(timezone.utc)
+    if now.tzinfo is None or now.utcoffset() is None:
+        raise ValueError("retained-state validation clock must be timezone-aware")
+    now = now.astimezone(timezone.utc)
     state = ResumeState(done=processed_attempt_ids(root))
     row_map = {row["attempt_id"]: row for row in initial_rows}
     if len(row_map) != len(initial_rows):
         raise ValueError("duplicate initial Attempt IDs")
     failures = {path.stem: _read(path) for path in (root / "failures").glob("*.json")}
+    captures = {path.stem: _read(path) for path in (root / "metadata").glob("*.json")
+                if not path.name.startswith(("retry-link-", "first-dispatch-"))}
     links = {path.stem.removeprefix("retry-link-"): _read(path)
              for path in (root / "metadata").glob("retry-link-*.json")}
     claims = {path.stem: _read(path) for path in (root / "dispatch").glob("*.json")}
@@ -231,18 +280,33 @@ def restore(*, root: Path, initial_rows: list[dict[str, Any]],
                 row_map[retry["attempt_id"]] = retry
     if retained_ids - set(row_map):
         raise ValueError("retained state contains an unregistered Attempt ID or excess retry")
+    capture_times = {}
+    for aid, capture in captures.items():
+        row = row_map[aid]
+        capture_times[aid] = validate_capture(capture, row, bounds=row_bounds(row), current=now)
     for aid, failure in failures.items():
-        _bind(failure, row_map[aid])
-        if any(failure.get(key) != row_map[aid].get(key) for key in (
-                "service_lineage_id", "window_id", "retry_of_attempt_id")):
-            raise ValueError("retained failure lineage/window/parent mismatch")
+        row = row_map[aid]
+        _bind_fields(failure, row, archive.FAILURE_IDENTITY_FIELDS, "failure")
+        # Newer technical sidecars may carry additional frozen identity. Never
+        # ignore contradictory evidence simply because it is an optional field
+        # in the older failure format.
+        additional = tuple(key for key in archive.CAPTURE_IDENTITY_FIELDS
+                           if key in failure and key not in archive.FAILURE_IDENTITY_FIELDS)
+        _bind_fields(failure, row, additional, "failure")
+        if "model_id_requested" in failure and failure["model_id_requested"] != row["model_id"]:
+            raise ValueError("retained failure frozen model identity mismatch")
+    claim_times = {}
     for aid, claim in claims.items():
         if claim.get("type") != "attempt_dispatch_claim":
             raise ValueError("invalid retained dispatch record type")
         _bind(claim, row_map[aid], claim=True)
         if authorization_sha256 is not None and claim.get("authorization_sha256") != authorization_sha256:
             raise ValueError("retained dispatch authorization hash mismatch")
-        _utc(claim.get("dispatched_at_utc"))
+        dispatched = _utc(claim.get("dispatched_at_utc"))
+        start, close = row_bounds(row_map[aid])
+        if not start <= dispatched < close or dispatched > now:
+            raise ValueError("retained dispatch timestamp outside registered/current bounds")
+        claim_times[aid] = dispatched
     for path in (root / "deviations").glob("*.json"):
         record = _read(path)
         record_type = str(record.get("type", ""))
@@ -255,12 +319,19 @@ def restore(*, root: Path, initial_rows: list[dict[str, Any]],
             state.suspended.add(sid)
     expected_links: dict[str, tuple[datetime, dict[str, Any], dict[str, Any]]] = {}
     recovery_candidates: dict[str, list[tuple[datetime, int, str]]] = {}
+    recovery_blocks = []
+    failure_times = {}
     for aid, failure in failures.items():
         row = row_map[aid]
         failed_at = _utc(failure.get("failed_at_utc"))
         start, close = row_bounds(row)
         if failed_at < start:
             raise ValueError("retained failure predates registered row window")
+        if failed_at > now:
+            raise ValueError("retained failure timestamp is in the future")
+        if aid in claim_times and failed_at < claim_times[aid]:
+            raise ValueError("retained failure predates dispatch claim")
+        failure_times[aid] = failed_at
         kind = failure.get("failure_kind")
         decision = decide_retry(attempt=int(row["attempt"]), failure_kind=kind,
             failed_at=failed_at, provider_retry_after_seconds=failure.get("retry_after_seconds"),
@@ -289,8 +360,7 @@ def restore(*, root: Path, initial_rows: list[dict[str, Any]],
                     recovery_candidates.setdefault(sid, []).append((due, int(retry["execution_order"]), retry["attempt_id"]))
             if (persist and failure.get('http_status') in {429, 502, 503, 504}
                     and not any(status in {429, 502, 503, 504} for status in ancestry[1:])):
-                record_recovery_block(data_root, row, retry_id=retry['attempt_id'],
-                                      due=due, http_status=failure.get('http_status'))
+                recovery_blocks.append((row, retry['attempt_id'], due, failure.get('http_status')))
     for sid, candidates in recovery_candidates.items():
         state.recovery_attempt[sid] = min(candidates)[2]
     for aid, link in links.items():
@@ -307,6 +377,20 @@ def restore(*, root: Path, initial_rows: list[dict[str, Any]],
     for aid in retained_ids:
         if int(row_map[aid]["attempt"]) > 1 and aid not in expected_links:
             raise ValueError("retained retry attempt lacks a protocol-eligible parent failure")
+        if aid in capture_times and aid in claim_times and capture_times[aid][0] < claim_times[aid]:
+            raise ValueError("retained capture start predates dispatch claim")
+        if int(row_map[aid]["attempt"]) > 1:
+            due = expected_links[aid][0]
+            if aid in capture_times and capture_times[aid][0] < due:
+                raise ValueError("retained retry capture starts before protocol-eligible due")
+            if aid in failure_times and failure_times[aid] < due:
+                raise ValueError("retained retry failure predates protocol-eligible due")
+            if aid in claim_times and claim_times[aid] < due:
+                raise ValueError("retained retry dispatch predates protocol-eligible due")
+    # Only repair missing append-only technical records after every retained
+    # identity and timestamp has passed; corrupt state causes no repair writes.
+    for row, retry_id, due, http_status in recovery_blocks:
+        record_recovery_block(data_root, row, retry_id=retry_id, due=due, http_status=http_status)
     for aid, (due, retry, failure) in expected_links.items():
         if persist and aid not in links:
             archive.archive_retry_link(data_root=data_root,

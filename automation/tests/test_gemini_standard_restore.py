@@ -192,8 +192,11 @@ class StandardRestorationTests(unittest.TestCase):
             stack.enter_context(mock.patch.object(executor, "preflight", return_value=([row], *checked[1:])))
             clock = stack.enter_context(mock.patch.object(executor, "datetime", wraps=datetime))
             clock.now.return_value = datetime(2026, 10, 6, 12, tzinfo=timezone.utc)
+            dispatch_stamp = clock.now.return_value.isoformat()
             stack.enter_context(mock.patch.dict(os.environ, {"MIBO_CORE_V2_EXECUTION": executor.EXECUTION_SENTINEL}))
-            called = stack.enter_context(mock.patch.object(executor, "call_provider", side_effect=self.result))
+            called = stack.enter_context(mock.patch.object(executor, "call_provider", side_effect=lambda **kw: replace(
+                self.result(**kw), started_at_utc=dispatch_stamp,
+                completed_at_utc=dispatch_stamp, duration_ms=0)))
             summary = executor.execute(protocol_path=location / "bundle" / built["protocol_file"],
                 freeze_path=location / "bundle" / built["provider_freeze_file"],
                 manifest_path=location / "bundle" / built["manifest_file"], authorization_path=auth, data_root=root / "data")

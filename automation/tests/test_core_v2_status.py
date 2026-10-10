@@ -1,5 +1,5 @@
 """Synthetic technical monitoring regressions, no provider traffic."""
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from contextlib import ExitStack
 import hashlib
 import json
@@ -36,10 +36,14 @@ class TechnicalStatusTests(unittest.TestCase):
                                    expected_wave="MIBO2-W02", **kwargs)
 
     def capture(self, root, row):
+        month, day = (10, 6) if row["wave_id"] == "MIBO2-W01" else (11, 3)
+        hour = 24 if row["window_id"] == "WB" else 0
+        started = datetime(2026, month, day, tzinfo=timezone.utc) + timedelta(hours=hour)
         return archive.archive_success(data_root=root / "data", row=row,
             request_payload={"prompt": "synthetic"}, response_json={"text": "SECRET-ANSWER"},
             raw_response_text="SECRET-ANSWER", http_status=200, returned_model="synthetic",
-            usage={}, started_at_utc="2026-11-03T00:00:00Z", completed_at_utc="2026-11-03T00:00:01Z",
+            usage={}, started_at_utc=started.isoformat(),
+            completed_at_utc=(started + timedelta(seconds=1)).isoformat(),
             duration_ms=1000)
 
     def test_three_captures_and_successful_process_cannot_mean_complete(self):
@@ -95,6 +99,44 @@ class TechnicalStatusTests(unittest.TestCase):
                 self.assertFalse(report["scientific_collection_complete"])
                 self.assertNotIn("SECRET", json.dumps(report))
 
+    def test_unbound_or_ineligible_technical_capture_is_never_counted(self):
+        mutations = (
+            {'http_status': 503}, {'query_sha256': '0' * 64},
+            {'provider_freeze_sha256': '0' * 64}, {'window_id': 'WB'},
+            {'service_lineage_id': 'MIBO-SL-999'},
+            {'started_at_utc': '2026-11-05T00:00:00Z'},
+            {'completed_at_utc': '2026-11-02T00:00:00Z'},
+            {'completed_at_utc': '2026-11-05T00:00:01Z'},
+        )
+        for values in mutations:
+            with self.subTest(values=values), tempfile.TemporaryDirectory() as d:
+                root = Path(d); fixture, rows = self.fixture(root)
+                self.capture(root, rows[0])
+                wave = archive.wave_root(root / 'data', 'JP01', 'MIBO2-W02')
+                path = wave / 'metadata' / (rows[0]['attempt_id'] + '.json')
+                data = json.loads(path.read_text())
+                path.write_text(json.dumps(dict(data, **values)))
+                report = self.report(root, fixture)
+                self.assertEqual(report['status'], 'INTEGRITY_ERROR')
+                self.assertEqual(report['captured_cells'], 0)
+                self.assertFalse(report['scope_collection_complete'])
+                self.assertNotIn('SECRET', json.dumps(report))
+
+    def test_legacy_capture_format_limit_is_explicit_without_inspecting_raw(self):
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d); fixture, rows = self.fixture(root)
+            self.capture(root, rows[0])
+            wave = archive.wave_root(root / 'data', 'JP01', 'MIBO2-W02')
+            path = wave / 'metadata' / (rows[0]['attempt_id'] + '.json')
+            data = json.loads(path.read_text())
+            del data['technical_metadata_version']
+            path.write_text(json.dumps(data))
+            report = self.report(root, fixture)
+            self.assertEqual(report['status'], 'INTEGRITY_ERROR')
+            self.assertIn('legacy capture lacks complete technical metadata', report['integrity_errors'][0])
+            self.assertEqual(report['captured_cells'], 0)
+            self.assertNotIn('SECRET', json.dumps(report))
+
     def test_unknown_dispatch_is_uncertain_and_never_counted_as_unattempted(self):
         with tempfile.TemporaryDirectory() as d:
             root = Path(d); fixture, rows = self.fixture(root)
@@ -113,7 +155,7 @@ class TechnicalStatusTests(unittest.TestCase):
                     manifest_path=fixture.manifest, data_root=root / "data", expected_wave="MIBO2-W01")
             rows[0]["execution_order"], rows[1]["execution_order"] = rows[1]["execution_order"], rows[0]["execution_order"]
             fixture.manifest.unlink(); runner.write_csv(rows, fixture.manifest)
-            with self.assertRaisesRegex(ValueError, "deterministic"):
+            with self.assertRaisesRegex(ValueError, "manifest"):
                 self.report(root, fixture)
 
     def test_complete_authorized_scope_does_not_certify_whole_wave(self):

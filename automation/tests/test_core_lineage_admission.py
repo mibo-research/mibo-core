@@ -1,5 +1,6 @@
 """Synthetic-only admission, evidence reuse, execution isolation and Google tests."""
 from contextlib import ExitStack, redirect_stdout
+from dataclasses import replace
 from datetime import datetime, timezone
 import hashlib
 import importlib.util
@@ -154,8 +155,11 @@ class AdmissionTests(unittest.TestCase):
             stack.enter_context(mock.patch.object(executor, "preflight", return_value=(rows, *checked[1:])))
             clock = stack.enter_context(mock.patch.object(executor, "datetime", wraps=datetime))
             clock.now.return_value = datetime(2026, 10, 6, 12, tzinfo=timezone.utc)
+            dispatch_stamp = clock.now.return_value.isoformat()
             stack.enter_context(mock.patch.dict(os.environ, {"MIBO_CORE_V2_EXECUTION": executor.EXECUTION_SENTINEL}))
-            called = stack.enter_context(mock.patch.object(executor, "call_provider", side_effect=recovery_fixture.RecoveryTests().result))
+            called = stack.enter_context(mock.patch.object(executor, "call_provider", side_effect=lambda **kw: replace(
+                recovery_fixture.RecoveryTests().result(**kw), started_at_utc=dispatch_stamp,
+                completed_at_utc=dispatch_stamp, duration_ms=0)))
             base = dest / "bundle"
             summary = executor.execute(protocol_path=base / built["protocol_file"],
                 freeze_path=base / built["provider_freeze_file"], manifest_path=base / built["manifest_file"],
@@ -234,6 +238,9 @@ class AdmissionTests(unittest.TestCase):
                 stack.enter_context(mock.patch("builtins.open", side_effect=[reader, writer]))
                 stack.enter_context(mock.patch.object(scoped, "UNIT_DIR", units))
                 stack.enter_context(mock.patch.object(scoped, "permissions"))
+                # This test exercises synthetic authorization and unit creation;
+                # root ownership changes belong to the private VM, not CI.
+                chown = stack.enter_context(mock.patch.object(scoped.os, "chown"))
                 stack.enter_context(mock.patch.object(scoped.grp, "getgrnam", return_value=SimpleNamespace(gr_gid=os.getgid())))
                 stack.enter_context(mock.patch("pwd.getpwnam", return_value=SimpleNamespace(pw_uid=os.getuid(), pw_gid=os.getgid())))
                 run = stack.enter_context(mock.patch.object(scoped.subprocess, "run"))
@@ -248,6 +255,7 @@ class AdmissionTests(unittest.TestCase):
                         with self.assertRaisesRegex(ValueError, "human execution"):
                             scoped.authorize_and_start(out_dir=dest, built=built, data_root=Path(d) / "data", values=values)
                         run.assert_not_called()
+                        chown.assert_not_called()
                         self.assertFalse((dest / "core_v2_execution_authorization.scoped.json").exists())
                     else:
                         scoped.authorize_and_start(out_dir=dest, built=built, data_root=Path(d) / "data", values=values)
@@ -259,6 +267,15 @@ class AdmissionTests(unittest.TestCase):
                         auth = json.loads((dest / "core_v2_execution_authorization.scoped.json").read_text())
                         self.assertEqual(auth["explicit_human_phrase"], phrase)
                         self.assertEqual(auth["admitted_lineages"], admission.INITIAL_SCOPE)
+                        chown.assert_any_call(dest / "ready-three.env", 0, os.getgid())
+
+    def test_checked_runtime_refuses_nonroot_before_any_vm_inspection(self):
+        with mock.patch.object(scoped.os, "geteuid", return_value=1000), mock.patch.object(scoped.runtime_health, "installed_snapshot_state") as integrity, mock.patch.object(scoped.subprocess, "run") as run, mock.patch.object(scoped.subprocess, "check_output") as check:
+            with self.assertRaisesRegex(ValueError, "root execution required"):
+                scoped.checked_runtime({}, first_start=True)
+        integrity.assert_not_called()
+        run.assert_not_called()
+        check.assert_not_called()
 
 
 if __name__ == "__main__":
