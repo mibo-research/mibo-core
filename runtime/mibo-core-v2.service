@@ -4,12 +4,15 @@ After=network-online.target time-sync.target
 Wants=network-online.target time-sync.target
 
 [Service]
-Type=oneshot
+Type=simple
 User=mibo
 Group=mibo
 WorkingDirectory=/opt/mibo-core
 EnvironmentFile=/etc/mibo/mibo-core-v2.env
-ExecStart=/usr/bin/python3 /opt/mibo-core/automation/core_v2_waiter.py --protocol ${MIBO_CORE_V2_PROTOCOL} --wave ${MIBO_CORE_V2_WAVE} --manifest ${MIBO_CORE_V2_MANIFEST} --freeze ${MIBO_CORE_V2_FREEZE} --authorization ${MIBO_CORE_V2_AUTHORIZATION} --data-root ${MIBO_DATA_ROOT}
+Environment=PYTHONDONTWRITEBYTECODE=1
+ExecStart=/usr/bin/python3 -B /opt/mibo-core/automation/core_v2_waiter.py --protocol ${MIBO_CORE_V2_PROTOCOL} --wave ${MIBO_CORE_V2_WAVE} --manifest ${MIBO_CORE_V2_MANIFEST} --freeze ${MIBO_CORE_V2_FREEZE} --authorization ${MIBO_CORE_V2_AUTHORIZATION} --data-root ${MIBO_DATA_ROOT} --expected-host ${MIBO_RUNTIME_HOST} --expected-source-commit ${MIBO_CORE_V2_SOURCE_COMMIT} --strict-runtime
+Restart=no
+TimeoutStartSec=infinity
 NoNewPrivileges=true
 PrivateTmp=true
 ProtectSystem=strict

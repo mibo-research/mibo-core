@@ -4,6 +4,11 @@ This directory contains **fail-closed** runtime templates for the frozen MIBO
 Core v1.0 paired API module and the prospective API-only MIBO Core v2.0. It is
 not a browser or public-UI collector.
 
+The W02 engineering candidate, scoped deployment checks, local monitoring and
+generic offline closure are described in
+[W02_RUNTIME_HARDENING.md](../docs/W02_RUNTIME_HARDENING.md). Staging a candidate
+does not authorize execution or change the deployed W01 runtime.
+
 ## Prospective API-only Core v2.0
 
 `mibo-core-v2.service` is the dedicated runtime for the requested API-only Core

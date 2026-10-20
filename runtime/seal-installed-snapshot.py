@@ -26,9 +26,9 @@ def seal(root: Path, source_commit: str) -> dict[str, object]:
         "installed_at_utc": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
         "source_worktree_clean": True,
         "collection_enabled_by_provisioner": False,
-        "installed_services": [
+        "service_templates_present": [name for name in (
             "mibo-paired.service", "mibo-shadow.service", "mibo-core-v2.service",
-        ],
+        ) if (root / "runtime" / name).is_file()],
     }
     with provenance_path.open("x", encoding="utf-8") as fh:
         json.dump(provenance, fh, indent=2, sort_keys=True)

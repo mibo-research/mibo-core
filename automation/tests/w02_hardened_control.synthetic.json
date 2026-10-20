@@ -1,0 +1,27 @@
+{
+  "cases": {
+    "ambiguous_prior_namespace_dispatch": {
+      "blocked": true,
+      "error": "another protocol namespace has retained lineage attempt; no replay",
+      "mock_adapter_calls": 0
+    },
+    "contradictory_prior_failure_sid": {
+      "blocked": true,
+      "error": "other namespace retained attempt filename/lineage conflict",
+      "mock_adapter_calls": 0
+    },
+    "deterministic_order": {
+      "errors": [
+        "row 1: deterministic manifest execution_order mismatch",
+        "row 2: deterministic manifest execution_order mismatch"
+      ],
+      "rejected": true
+    },
+    "retained_environment_mismatch": {
+      "error": null,
+      "first_mock_adapter_calls": 1,
+      "restart_mock_adapter_calls": 0
+    }
+  },
+  "network": "disabled by mocked provider adapter"
+}

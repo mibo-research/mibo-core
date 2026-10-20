@@ -1,0 +1,24 @@
+{
+  "cases": {
+    "ambiguous_prior_namespace_dispatch": {
+      "blocked": false,
+      "error": null,
+      "mock_adapter_calls": 2
+    },
+    "contradictory_prior_failure_sid": {
+      "blocked": false,
+      "error": null,
+      "mock_adapter_calls": 2
+    },
+    "deterministic_order": {
+      "errors": [],
+      "rejected": false
+    },
+    "retained_environment_mismatch": {
+      "error": null,
+      "first_mock_adapter_calls": 1,
+      "restart_mock_adapter_calls": 1
+    }
+  },
+  "network": "disabled by mocked provider adapter"
+}

@@ -4,34 +4,83 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 import hashlib
+import os
 from pathlib import Path
+import re
 from typing import Any
 
 from raw_archive import canonical_json_bytes
 
 PROTOCOL_VERSION = "2.0"
 SCIENTIFIC_CLASS = "confirmatory_primary"
+# A separate technical sidecar permits identity/timing validation without
+# decoding the restricted response envelope. Earlier capture sidecars do not
+# provide enough evidence for safe automatic restart or completion signoff.
+TECHNICAL_CAPTURE_VERSION = 1
+CAPTURE_IDENTITY_FIELDS = (
+    "protocol_version", "protocol_registration_id", "scientific_class",
+    "observation_surface", "environment_class", "attempt_id",
+    "retry_of_attempt_id", "wave_id", "site_id", "service_lineage_id",
+    "service_name", "provider", "line_id", "query_form_id", "item_id",
+    "language", "anchor", "window_id", "replication", "attempt",
+    "execution_order", "random_seed", "query_sha256", "protocol_file_sha256",
+    "provider_freeze_sha256",
+)
+FAILURE_IDENTITY_FIELDS = (
+    "protocol_version", "scientific_class", "attempt_id", "retry_of_attempt_id",
+    "protocol_registration_id", "wave_id", "site_id", "service_lineage_id",
+    "provider", "line_id", "query_form_id", "window_id", "replication",
+    "attempt", "query_sha256",
+)
 
 
 def _write_exclusive(path: Path, data: bytes) -> str:
+    missing_parents: list[Path] = []
+    parent = path.parent
+    while not parent.exists():
+        missing_parents.append(parent)
+        parent = parent.parent
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.open("xb") as fh:
         fh.write(data)
+        fh.flush()
+        os.fsync(fh.fileno())
+    # The exclusive filename must survive a reboot as well as the bytes. This
+    # is especially important for the pre-dispatch record used by the executor.
+    for directory in [path.parent] + [p.parent for p in missing_parents]:
+        fd = os.open(directory, os.O_RDONLY | os.O_DIRECTORY)
+        try:
+            os.fsync(fd)
+        finally:
+            os.close(fd)
     return hashlib.sha256(data).hexdigest()
 
 
-def wave_root(data_root: Path, site_id: str, wave_id: str) -> Path:
-    return data_root / "v2.0" / site_id / wave_id
+def wave_root(data_root: Path, site_id: str, wave_id: str,
+              protocol_version: str = PROTOCOL_VERSION) -> Path:
+    if protocol_version not in {"2.0", "2.0.1", "2.0.2", "2.0.3", "2.0.4"}:
+        raise ValueError("unsupported Core archive protocol version")
+    if any(not isinstance(value, str) or not re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9_-]*', value)
+           for value in (site_id, wave_id)):
+        raise ValueError("unsafe Core archive site/wave identity")
+    root = data_root
+    for component in (f"v{protocol_version}", site_id, wave_id):
+        root = root / component
+        if root.is_symlink():
+            raise ValueError("Core archive namespace must not contain a symlink")
+    return root
 
 
 def archive_success(*, data_root: Path, row: dict[str, Any], request_payload: dict[str, Any],
                     response_json: dict[str, Any], raw_response_text: str, http_status: int,
                     returned_model: str | None, usage: Any, started_at_utc: str,
-                    completed_at_utc: str, duration_ms: int) -> dict[str, Any]:
-    root = wave_root(data_root, row["site_id"], row["wave_id"])
+                    completed_at_utc: str, duration_ms: int,
+                    response_metadata: dict[str, Any] | None = None) -> dict[str, Any]:
+    version = row["protocol_version"]
+    root = wave_root(data_root, row["site_id"], row["wave_id"], version)
     observation_id = row["attempt_id"]
     envelope = {
-        "protocol_version": PROTOCOL_VERSION,
+        "protocol_version": version,
         "protocol_registration_id": row["protocol_registration_id"],
         "scientific_class": SCIENTIFIC_CLASS,
         "observation_surface": "provider_api",
@@ -56,19 +105,27 @@ def archive_success(*, data_root: Path, row: dict[str, Any], request_payload: di
         "usage": usage, "started_at_utc": started_at_utc,
         "completed_at_utc": completed_at_utc, "duration_ms": duration_ms,
     }
+    if response_metadata is not None:
+        envelope["response_metadata"] = response_metadata
     raw_path = root / "api_raw" / f"{observation_id}.json"
     raw_hash = _write_exclusive(raw_path, canonical_json_bytes(envelope))
     metadata = {
-        "protocol_version": PROTOCOL_VERSION,
-        "scientific_class": SCIENTIFIC_CLASS,
+        **{key: envelope[key] for key in CAPTURE_IDENTITY_FIELDS},
+        "technical_metadata_version": TECHNICAL_CAPTURE_VERSION,
         "observation_id": observation_id,
-        "attempt_id": row["attempt_id"],
-        "retry_of_attempt_id": row.get("retry_of_attempt_id"),
+        "model_id_requested": row["model_id"],
+        "model_id_returned": returned_model,
+        "http_status": http_status,
+        "started_at_utc": started_at_utc,
+        "completed_at_utc": completed_at_utc,
+        "duration_ms": duration_ms,
         "raw_file": str(raw_path.relative_to(root)),
         "raw_file_sha256": raw_hash,
         "captured_at_utc": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
         "status": "valid_confirmatory_api_capture",
     }
+    if response_metadata is not None:
+        metadata["response_metadata"] = response_metadata
     meta_path = root / "metadata" / f"{observation_id}.json"
     meta_hash = _write_exclusive(meta_path, canonical_json_bytes(metadata))
     return {**metadata, "metadata_file_sha256": meta_hash}
@@ -77,10 +134,12 @@ def archive_success(*, data_root: Path, row: dict[str, Any], request_payload: di
 def archive_failure(*, data_root: Path, row: dict[str, Any], failure_kind: str,
                     message: str, failed_at_utc: str, http_status: int | None = None,
                     retry_after_seconds: int | None = None,
-                    response_body: str | None = None) -> dict[str, Any]:
-    root = wave_root(data_root, row["site_id"], row["wave_id"])
+                    response_body: str | None = None,
+                    response_metadata: dict[str, Any] | None = None) -> dict[str, Any]:
+    version = row["protocol_version"]
+    root = wave_root(data_root, row["site_id"], row["wave_id"], version)
     record = {
-        "protocol_version": PROTOCOL_VERSION, "scientific_class": SCIENTIFIC_CLASS,
+        "protocol_version": version, "scientific_class": SCIENTIFIC_CLASS,
         "attempt_id": row["attempt_id"], "retry_of_attempt_id": row.get("retry_of_attempt_id"),
         "protocol_registration_id": row["protocol_registration_id"],
         "wave_id": row["wave_id"], "site_id": row["site_id"],
@@ -93,6 +152,8 @@ def archive_failure(*, data_root: Path, row: dict[str, Any], failure_kind: str,
         "retry_after_seconds": retry_after_seconds,
         "provider_response_body": response_body, "failed_at_utc": failed_at_utc,
     }
+    if response_metadata is not None:
+        record["response_metadata"] = response_metadata
     path = root / "failures" / f"{row['attempt_id']}.json"
     digest = _write_exclusive(path, canonical_json_bytes(record))
     return {"failure_file": str(path.relative_to(root)), "failure_file_sha256": digest}
@@ -100,10 +161,11 @@ def archive_failure(*, data_root: Path, row: dict[str, Any], failure_kind: str,
 
 def archive_retry_link(*, data_root: Path, original_attempt_id: str,
                        retry_attempt_id: str, site_id: str, wave_id: str,
-                       due_at_utc: str, failure_kind: str) -> dict[str, Any]:
-    root = wave_root(data_root, site_id, wave_id)
+                       due_at_utc: str, failure_kind: str,
+                       protocol_version: str = PROTOCOL_VERSION) -> dict[str, Any]:
+    root = wave_root(data_root, site_id, wave_id, protocol_version)
     record = {
-        "protocol_version": PROTOCOL_VERSION, "scientific_class": SCIENTIFIC_CLASS,
+        "protocol_version": protocol_version, "scientific_class": SCIENTIFIC_CLASS,
         "original_attempt_id": original_attempt_id, "retry_attempt_id": retry_attempt_id,
         "due_at_utc": due_at_utc, "failure_kind": failure_kind,
         "link_type": "technical_retry",
@@ -114,10 +176,11 @@ def archive_retry_link(*, data_root: Path, original_attempt_id: str,
 
 
 def write_deviation(*, data_root: Path, site_id: str, wave_id: str,
-                    deviation_id: str, record: dict[str, Any]) -> str:
-    path = wave_root(data_root, site_id, wave_id) / "deviations" / f"{deviation_id}.json"
+                    deviation_id: str, record: dict[str, Any],
+                    protocol_version: str = PROTOCOL_VERSION) -> str:
+    path = wave_root(data_root, site_id, wave_id, protocol_version) / "deviations" / f"{deviation_id}.json"
     return _write_exclusive(path, canonical_json_bytes({
-        "protocol_version": PROTOCOL_VERSION,
-        "scientific_class": SCIENTIFIC_CLASS,
         **record,
+        "protocol_version": protocol_version,
+        "scientific_class": SCIENTIFIC_CLASS,
     }))

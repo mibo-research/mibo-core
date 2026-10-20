@@ -13,7 +13,9 @@ import json
 import os
 from pathlib import Path
 import platform
+import re
 import shutil
+import stat
 import subprocess
 import sys
 from typing import Any
@@ -36,39 +38,110 @@ def _sha256(path: Path) -> str:
 
 
 def installed_snapshot_state(repo_root: Path) -> dict[str, Any] | None:
+    """Verify the complete sealed tree without following untrusted paths.
+
+    Only an entirely absent seal is reported as None. A partial or damaged seal
+    fails closed, including extra files that the checksum manifest did not bind.
+    Installed runtimes must disable bytecode writes before this check runs.
+    """
     provenance_path = repo_root / "INSTALL_PROVENANCE.json"
     sums_path = repo_root / "INSTALL_SHA256SUMS.txt"
-    if not provenance_path.is_file() or not sums_path.is_file():
+    if not any(p.exists() or p.is_symlink() for p in (provenance_path, sums_path)):
         return None
-    try:
-        provenance = json.loads(provenance_path.read_text(encoding="utf-8"))
-    except json.JSONDecodeError:
-        return {
-            "commit_sha": None,
-            "commit_resolved": False,
-            "working_tree_clean": False,
-            "provenance_mode": "installed_snapshot",
-            "snapshot_integrity_pass": False,
-            "snapshot_errors": ["invalid INSTALL_PROVENANCE.json"],
-        }
     errors: list[str] = []
-    for line in sums_path.read_text(encoding="utf-8").splitlines():
+    provenance: dict[str, Any] = {}
+    installed_files: set[str] = set()
+    if repo_root.is_symlink() or not repo_root.is_dir():
+        errors.append("installed root must be a real directory")
+    else:
+        def walk_error(exc: OSError) -> None:
+            errors.append("cannot enumerate installed tree")
+
+        for current, dirs, files in os.walk(repo_root, followlinks=False, onerror=walk_error):
+            current_path = Path(current)
+            for name in list(dirs):
+                path = current_path / name
+                if path.is_symlink():
+                    errors.append(f"installed symlink is forbidden: {path.relative_to(repo_root).as_posix()}")
+                    dirs.remove(name)
+            for name in files:
+                path = current_path / name
+                rel = path.relative_to(repo_root).as_posix()
+                try:
+                    mode = path.lstat().st_mode
+                except OSError:
+                    errors.append(f"cannot inspect installed file: {rel}")
+                    continue
+                if stat.S_ISLNK(mode):
+                    errors.append(f"installed symlink is forbidden: {rel}")
+                elif not stat.S_ISREG(mode):
+                    errors.append(f"installed special file is forbidden: {rel}")
+                elif rel != "INSTALL_SHA256SUMS.txt":
+                    installed_files.add(rel)
+
+    try:
+        if "INSTALL_PROVENANCE.json" not in installed_files:
+            raise ValueError("missing or unsafe provenance")
+        loaded = json.loads(provenance_path.read_text(encoding="utf-8"))
+        if not isinstance(loaded, dict):
+            raise ValueError("provenance must be an object")
+        provenance = loaded
+    except (OSError, ValueError, UnicodeError):
+        errors.append("invalid or missing INSTALL_PROVENANCE.json")
+    try:
+        if repo_root.is_symlink() or sums_path.is_symlink() or not sums_path.is_file():
+            raise ValueError("missing or unsafe checksum manifest")
+        lines = sums_path.read_text(encoding="utf-8").splitlines()
+    except (OSError, ValueError, UnicodeError):
+        errors.append("invalid or missing INSTALL_SHA256SUMS.txt")
+        lines = []
+    declared: set[str] = set()
+    for number, line in enumerate(lines, start=1):
         if not line.strip():
             continue
         try:
             expected, rel = line.split("  ", 1)
         except ValueError:
-            errors.append(f"malformed checksum line: {line}")
+            errors.append(f"malformed checksum line {number}")
             continue
+        if not re.fullmatch(r"[0-9a-f]{64}", expected):
+            errors.append(f"invalid checksum digest on line {number}")
+            continue
+        relative = Path(rel)
+        if (not rel or relative.is_absolute() or relative.as_posix() != rel
+                or any(part in {".", ".."} for part in rel.split("/"))
+                or "\\" in rel or any(ord(char) < 32 for char in rel)
+                or rel == "INSTALL_SHA256SUMS.txt"):
+            errors.append(f"unsafe checksum path on line {number}")
+            continue
+        if rel in declared:
+            errors.append(f"duplicate checksum path: {rel}")
+            continue
+        declared.add(rel)
         path = repo_root / rel
-        if not path.is_file():
-            errors.append(f"missing installed file: {rel}")
-        elif _sha256(path) != expected:
-            errors.append(f"installed file hash mismatch: {rel}")
+        if rel not in installed_files:
+            errors.append(f"missing or unsafe installed file: {rel}")
+        else:
+            try:
+                if _sha256(path) != expected:
+                    errors.append(f"installed file hash mismatch: {rel}")
+            except OSError:
+                errors.append(f"cannot hash installed file: {rel}")
+    if not declared:
+        errors.append("empty installed checksum manifest")
+    for rel in sorted(installed_files - declared):
+        errors.append(f"installed file absent from checksum manifest: {rel}")
+    if not (installed_files - {"INSTALL_PROVENANCE.json"}):
+        errors.append("installed snapshot has no payload files")
     commit = provenance.get("source_commit_sha")
+    commit_resolved = isinstance(commit, str) and re.fullmatch(r"[0-9a-f]{40}", commit) is not None
+    if not commit_resolved:
+        errors.append("source commit must be a full lowercase 40-hex Git SHA")
+    if provenance.get("source_worktree_clean") is not True:
+        errors.append("source worktree was not recorded as clean")
     return {
         "commit_sha": commit,
-        "commit_resolved": isinstance(commit, str) and len(commit) == 40,
+        "commit_resolved": commit_resolved,
         "working_tree_clean": not errors,
         "provenance_mode": "installed_snapshot",
         "snapshot_integrity_pass": not errors,
@@ -79,6 +152,11 @@ def installed_snapshot_state(repo_root: Path) -> dict[str, Any] | None:
 
 
 def provenance_state(repo_root: Path) -> dict[str, Any]:
+    # An installed seal is authoritative even if a parent directory has .git.
+    # A damaged seal must not fall back to an unrelated clean checkout.
+    snapshot = installed_snapshot_state(repo_root)
+    if snapshot is not None:
+        return snapshot
     code, sha = _run(["git", "-C", str(repo_root), "rev-parse", "HEAD"])
     status_code, status = _run(["git", "-C", str(repo_root), "status", "--porcelain"])
     if code == 0:
@@ -88,9 +166,6 @@ def provenance_state(repo_root: Path) -> dict[str, Any]:
             "working_tree_clean": status_code == 0 and status == "",
             "provenance_mode": "git_checkout",
         }
-    snapshot = installed_snapshot_state(repo_root)
-    if snapshot is not None:
-        return snapshot
     return {
         "commit_sha": None,
         "commit_resolved": False,

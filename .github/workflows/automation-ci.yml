@@ -28,9 +28,15 @@ jobs:
           python-version: "3.12"
       - name: Verify frozen config integrity
         run: python automation/mibo_runner.py verify-config
-      - name: Compile automation modules
-        run: python -m py_compile automation/*.py
-      - name: Unit tests
+      - name: Compile automation and runtime modules
+        run: python -m py_compile automation/*.py runtime/*.py
+      - name: Validate offline staging script and runtime unit templates
+        run: |
+          bash -n runtime/stage-core-v2-w02.sh
+          systemd-analyze verify runtime/mibo-core-v2.service \
+            runtime/mibo-core-v2-prewave@.service \
+            runtime/mibo-core-v2-monitor@.service runtime/mibo-core-v2-monitor@.timer
+      - name: Synthetic tests including the 960-cell W02 rehearsal
         run: python -m unittest discover -s automation/tests -v
       - name: Generate and strictly validate W01 UI manifest
         run: |
