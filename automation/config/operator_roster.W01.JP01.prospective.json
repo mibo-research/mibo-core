@@ -1,0 +1,25 @@
+{
+  "schema_version": "1.0",
+  "protocol_doi": "10.5281/zenodo.21936410",
+  "wave_id": "MIBO-W01",
+  "site_id": "JP01",
+  "frozen_at_utc": "2026-08-15T23:11:00Z",
+  "operations_lead": "Kento Sasano",
+  "data_steward": null,
+  "api_technical_lead": null,
+  "service_operators": {
+    "MIBO-SL-001": [
+      "Kento Sasano"
+    ],
+    "MIBO-SL-002": [
+      "Kento Sasano"
+    ],
+    "MIBO-SL-003": [
+      "Kento Sasano"
+    ],
+    "MIBO-SL-004": [
+      "Kento Sasano"
+    ]
+  },
+  "note": "Prospectively confirmed for MIBO-W01 / JP01 before confirmatory collection. Single-person allocation: Kento Sasano serves as Operations Lead and Service Operator for all four Core lineages. This record does not authorize collection and contains no credentials."
+}
