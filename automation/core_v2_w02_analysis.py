@@ -71,12 +71,13 @@ def execution_environment():
     files = [
         "core_v2_w02_analysis.py", "core_v2_runner.py", "core_v2_wave_audit.py",
         "retry_policy.py", "mibo_runner.py",
-        "config/instrument_v1.0.json", "config/services_v1.0.json",
+        "config/instrument_v1.0.json", "config/services_v1.0.json", "config/waves_v1.0.json",
         "config/core_v2_agent_protocol.v2.0.1.json",
     ]
     return {
         "python_implementation": platform.python_implementation(),
         "python_version": platform.python_version(),
+        "python_executable_sha256": runner.sha256_file(Path(sys.executable)),
         "platform_system": platform.system(),
         "platform_machine": platform.machine(),
         "dependencies": "python-standard-library",
