@@ -195,6 +195,14 @@ def _inspect_namespace(spec, baseline, wave_id, *, sidecars_only, observed_at):
     if not SAFE_TOKEN.fullmatch(version):
         raise ValueError("Invalid namespace version")
     root = _tree(spec["raw_root"])
+    sealed, namespace_issues = _sealed(root)
+    if sidecars_only:
+        if sealed is None or namespace_issues:
+            raise ValueError("Technical sidecar mode requires a verified sealed namespace")
+        for key in ("manifest", "protocol", "freeze"):
+            path = Path(spec[key]).resolve()
+            if sealed.get(path.relative_to(root).as_posix()) != sha(path):
+                raise ValueError("Technical sidecar mode requires seal-bound frozen inputs")
     protocol = _json(spec["protocol"])
     freeze = _json(spec["freeze"])
     rows = _rows(spec["manifest"], wave_id)
@@ -220,18 +228,11 @@ def _inspect_namespace(spec, baseline, wave_id, *, sidecars_only, observed_at):
             planned[row["attempt_id"]] = row
     if set(admitted) != {r["service_lineage_id"] for r in planned.values()}:
         raise ValueError("Namespace admitted scope not found in manifest")
-    sealed, namespace_issues = _sealed(root)
     typed_rows = {}
     if sidecars_only:
         from core_v2_execution_state import validate_capture
         from core_v2_runner import read_csv
 
-        if sealed is None or namespace_issues:
-            raise ValueError("Technical sidecar mode requires a verified sealed namespace")
-        for key in ("manifest", "protocol", "freeze"):
-            path = Path(spec[key]).resolve()
-            if not path.is_relative_to(root) or sealed.get(path.relative_to(root).as_posix()) != sha(path):
-                raise ValueError("Technical sidecar mode requires seal-bound frozen inputs")
         typed_rows = {row["attempt_id"]: row for row in read_csv(Path(spec["manifest"]))}
     for folder in ("metadata", "failures", "dispatch", "api_raw", "deviations"):
         if (root / folder).exists() and not (root / folder).is_dir():
@@ -462,6 +463,18 @@ def audit_wave(*, baseline_manifest, namespaces, wave_id, now=None, sidecars_onl
     if observed_at.tzinfo is None:
         raise ValueError("Audit timestamp must include timezone")
     before = _input_fingerprint(baseline_manifest, namespaces)
+    if sidecars_only:
+        manifests = set()
+        for spec in namespaces:
+            closure = Path(spec["raw_root"]).resolve() / "closure"
+            for key, filename in (("manifest", "FROZEN_MANIFEST.csv"),
+                                  ("protocol", "FROZEN_PROTOCOL.json"),
+                                  ("freeze", "FROZEN_FREEZE.json")):
+                if Path(spec[key]).resolve() != closure / filename:
+                    raise ValueError("Technical sidecar mode requires canonical seal-bound frozen inputs")
+            manifests.add(closure / "FROZEN_MANIFEST.csv")
+        if Path(baseline_manifest).resolve() not in manifests:
+            raise ValueError("Technical sidecar mode requires a frozen namespace baseline")
     rows = _rows(baseline_manifest, wave_id)
     baseline = {r["attempt_id"]: r for r in rows}
     variants, all_records, sources, protocols = defaultdict(list), defaultdict(list), [], {}

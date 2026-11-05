@@ -42,7 +42,7 @@ python -B runtime/audit-core-v2-wave.py \
 
 W02には `--wave MIBO2-W02` と対応する凍結入力・原記録を使う。出力先の親ディレクトリは事前に作成し、出力ディレクトリ自体は存在しないものを指定する。原記録の内部と公開ソース内には出力できない。出力ディレクトリは0700、ファイルは0600で新規作成し、既存結果を上書きしない。
 
-W02の解析前QCには `--sealed-sidecars-only` を指定する。封印済みツリー内の凍結マニフェスト・プロトコル・設定を使用し、技術sidecarでHTTP・実施時刻・IDを確認する。原記録はSHA-256の照合用バイト列として扱い、JSON本文をデコードしない。欠落・旧形式のsidecarは確定取得に数えない。実行例は [W02解析runbook](W02_ANALYSIS_RUNBOOK.md) を参照。
+W02の解析前QCには `--sealed-sidecars-only` を指定する。凍結マニフェスト・プロトコル・設定は、封印済みツリーの `closure/FROZEN_MANIFEST.csv`、`closure/FROZEN_PROTOCOL.json`、`closure/FROZEN_FREEZE.json` に限定する。技術sidecarでHTTP・実施時刻・IDを確認する。原記録はSHA-256の照合用バイト列として扱い、JSON本文をデコードしない。欠落・旧形式のsidecarは確定取得に数えない。実行例は [W02解析runbook](W02_ANALYSIS_RUNBOOK.md) を参照。
 
 ## 出力の意味
 

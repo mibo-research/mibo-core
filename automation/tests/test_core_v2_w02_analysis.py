@@ -247,9 +247,11 @@ class W02AnalysisTests(unittest.TestCase):
     def test_strict_audit_requires_seal_bound_inputs_and_complete_sidecar(self):
         spec, rows = fixture(self.base / "strict")
         capture(spec, rows[0])
+        unsealed_copy = spec["manifest"]
+        seal_synthetic_tree(spec)
+        (Path(spec["raw_root"]) / "SHA256SUMS.txt").unlink()
         with self.assertRaisesRegex(ValueError, "verified sealed namespace"):
             audit_opaque(spec)
-        unsealed_copy = spec["manifest"]
         seal_synthetic_tree(spec)
         with self.assertRaisesRegex(ValueError, "seal-bound frozen inputs"):
             audit_opaque({**spec, "manifest": unsealed_copy})
@@ -261,6 +263,17 @@ class W02AnalysisTests(unittest.TestCase):
         report = audit_opaque(spec)
         self.assertEqual(report["totals"]["verified_capture"], 0)
         self.assertIn("technical_capture_sidecar_invalid", report["observations"][0]["issues"])
+
+    def test_strict_audit_rejects_raw_as_frozen_input_before_decoding(self):
+        raw = str(next((Path(self.spec["raw_root"]) / "api_raw").glob("*.json")))
+        for role in ("manifest", "protocol", "freeze"):
+            with self.subTest(role=role):
+                with self.assertRaisesRegex(ValueError, "canonical seal-bound frozen inputs"):
+                    audit_opaque({**self.spec, role: raw})
+        with patch.object(audit, "_rows", side_effect=AssertionError("Unexpected manifest read")):
+            with self.assertRaisesRegex(ValueError, "frozen namespace baseline"):
+                audit.audit_wave(baseline_manifest=raw, namespaces=[self.spec],
+                                 wave_id=analysis.WAVE, sidecars_only=True)
 
     def test_rejects_bad_approval_and_environment(self):
         for changes in ({"decision": "draft"}, {"environment": {}}, {"input_hashes": {}},
