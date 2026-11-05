@@ -13,11 +13,50 @@ Work inside the approved private research environment. The original wave,
 archive, audit report, approval, coded CSV, and outputs stay private.
 
 Verify the sealed archive and derived read-only copy against the independently
-retained receipt digest. Follow [the audit runbook](W02_AUDIT_TOOL.md) on that
-copy. Use the same frozen 960-slot W02 manifest for the baseline and the single
-v2.0.1 namespace. Supply the exact frozen protocol, provider freeze, and all
-four authorized lineages. The audit reads technical evidence and produces
-`AUDIT_REPORT.json`; the analysis entry point reads that report.
+retained receipt digest. Keep `PRIVATE_RUNS` in an existing owner-only
+directory on the approved research host. `RESTORED_DATA_ROOT` is a dedicated
+read-only mount containing only the sealed wave tree. `SEALED_EXPORT` is
+the directory holding the archive and receipt. Set the two expected digests
+from the independently retained closure record.
+
+```sh
+set -eu
+umask 077
+python3 -B automation/core_v2_archive_verify.py \
+  --archive "$SEALED_EXPORT/MIBO2-W02-sealed.tar.gz" \
+  --receipt "$SEALED_EXPORT/CLOSE_RECEIPT.json" \
+  --expected-receipt-sha256 "$RECEIPT_SHA256" \
+  --wave MIBO2-W02 --site JP01 --restored-data-root "$RESTORED_DATA_ROOT"
+
+w02_root="$RESTORED_DATA_ROOT/v2.0.1/JP01/MIBO2-W02"
+PRIVATE_AUDIT="$PRIVATE_RUNS/w02-audit"
+python3 -B - "$w02_root" "$PRIVATE_RUNS/w02-namespace.json" <<'PY'
+import json
+from pathlib import Path
+import sys
+
+root, output = map(Path, sys.argv[1:])
+closure = root / "closure"
+with output.open("x", encoding="utf-8") as handle:
+    json.dump([{
+        "version": "2.0.1",
+        "raw_root": str(root),
+        "manifest": str(closure / "FROZEN_MANIFEST.csv"),
+        "protocol": str(closure / "FROZEN_PROTOCOL.json"),
+        "freeze": str(closure / "FROZEN_FREEZE.json"),
+        "lineages": ["MIBO-SL-001", "MIBO-SL-002", "MIBO-SL-003", "MIBO-SL-004"],
+    }], handle)
+PY
+python3 -B runtime/audit-core-v2-wave.py --wave MIBO2-W02 \
+  --baseline-manifest "$w02_root/closure/FROZEN_MANIFEST.csv" \
+  --namespace-spec "$PRIVATE_RUNS/w02-namespace.json" \
+  --sealed-sidecars-only --output-dir "$PRIVATE_AUDIT"
+```
+
+The audit uses the sealed technical capture sidecars for HTTP, timing and
+identity, and reads raw responses as opaque bytes for SHA-256 verification.
+The W02 analysis entry point requires that audit mode and the auditor digest
+from the same checkout. See [the audit runbook](W02_AUDIT_TOOL.md) for details.
 
 Run technical QC into a new private directory outside both the repository and
 the sealed tree. `WAVE_SEAL_SHA256` is the independently retained digest of

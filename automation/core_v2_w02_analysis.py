@@ -70,6 +70,7 @@ def json_object(data):
 def execution_environment():
     files = [
         "core_v2_w02_analysis.py", "core_v2_runner.py", "core_v2_wave_audit.py",
+        "core_v2_execution_state.py", "core_v2_archive.py", "raw_archive.py",
         "retry_policy.py", "mibo_runner.py",
         "config/instrument_v1.0.json", "config/services_v1.0.json", "config/waves_v1.0.json",
         "config/core_v2_agent_protocol.v2.0.1.json",
@@ -112,13 +113,16 @@ def audited_slots(report, seal_sha256, design, window):
     require(hex_digest(seal_sha256), "Expected an independently retained SHA-256")
     require(report["schema_version"] == "core-v2-content-blind-audit-1" and report["wave_id"] == WAVE,
             "Expected a W02 content-blind audit report")
+    require(report.get("capture_evidence_mode") == "sealed_technical_sidecars",
+            "W02 requires the sealed technical sidecar audit")
     require(len(report["namespaces"]) == 1, "Expected one W02 namespace")
     ns = report["namespaces"][0]
     require(ns["version"] == VERSION and ns["seal_present"] is True and ns["seal_sha256"] == seal_sha256,
             "Audit namespace or seal digest does not match the approved W02 input")
     require(ns["issues"] == [] and ns["malformed_evidence_records"] == 0 and ns["unlinked_raw_sha256"] == [],
             "Resolve namespace-wide audit issues before aggregation")
-    require(hex_digest(report["audit_tool_sha256"]), "Audit program digest is missing")
+    require(report["audit_tool_sha256"] == runner.sha256_file(HERE / "core_v2_wave_audit.py"),
+            "Audit program differs from the W02 checkout")
     require(hex_digest(report["baseline_manifest_sha256"]) and
             ns["manifest_sha256"] == report["baseline_manifest_sha256"],
             "Use the sealed W02 manifest for both the baseline and namespace")
@@ -354,6 +358,7 @@ def run(args):
         "mode": "human_coded_descriptives" if coding is not None else "technical_qc",
         "environment": environment, "input_hashes": hashes,
         "audit_tool_sha256": report["audit_tool_sha256"],
+        "capture_evidence_mode": report["capture_evidence_mode"],
         "baseline_manifest_sha256": report["baseline_manifest_sha256"],
         "approval_sha256": approval_hash, "reviewed_code_commit": reviewed_commit,
         "output_sha256": {name: digest(data) for name, data in artifacts.items()},

@@ -25,8 +25,7 @@ def fixture(base, version="2.0.2", wave_id="MIBO2-W02", lineages=None, profile=N
     root = home / "raw"
     for name in ("metadata", "api_raw", "failures", "dispatch", "deviations"):
         (root / name).mkdir(parents=True, exist_ok=True)
-    protocol_name = "core_v2_agent_protocol.v2.0.1.json" if version == "2.0.1" else f"core_v2_protocol.v{version}.json"
-    protocol = json.loads((CONFIG / protocol_name).read_text())
+    protocol = json.loads((CONFIG / ("core_v2_protocol.v" + version + ".json")).read_text())
     freeze = {"core_api": {"MIBO-SL-00" + str(n): {"model_id": "synthetic-model-" + str(n), "request_profile": profile or {"synthetic": True, "secret_value": SECRET}} for n in range(1, 5)}}
     pp, fp = home / "protocol.json", home / "freeze.json"
     write_json(pp, protocol); write_json(fp, freeze)
@@ -225,8 +224,8 @@ class WaveAuditTests(unittest.TestCase):
         self.assertEqual(sum(c["planned"] for c in report["cells"] if c["window_id"] == "WB"), 160)
     def test_concurrently_changed_input_aborts_before_report(self):
         inspect = audit._inspect_namespace
-        def changed(*args):
-            result = inspect(*args)
+        def changed(*args, **kwargs):
+            result = inspect(*args, **kwargs)
             (Path(self.spec["raw_root"]) / "new-unlinked-file").write_text(SECRET)
             return result
         with patch.object(audit, "_inspect_namespace", side_effect=changed):

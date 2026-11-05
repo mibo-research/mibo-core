@@ -2,22 +2,79 @@ import copy
 import csv
 from datetime import datetime, timezone
 from pathlib import Path
+import shutil
 import subprocess
 import sys
 import tempfile
 import unittest
+from unittest.mock import patch
 
-from test_core_v2_wave_audit import SECRET, audit, capture, failure, fixture, write_json
+from test_core_agent_amendment import AgentFixture
+from test_core_v2_wave_audit import SECRET, audit, failure, write_json
 
+import core_v2_archive as archive
+import core_v2_runner as runner
 import core_v2_w02_analysis as analysis
+
+
+def fixture(base):
+    base.mkdir(parents=True, exist_ok=True)
+    frozen = AgentFixture(base)
+    freeze = audit._json(frozen.freeze)
+    freeze["wave_id"] = analysis.WAVE
+    write_json(frozen.freeze, freeze)
+    rows = runner.generate_manifest(protocol_path=frozen.protocol, freeze_path=frozen.freeze,
+                                    wave_id=analysis.WAVE, site_id=analysis.SITE)
+    frozen.manifest.unlink()
+    runner.write_csv(rows, frozen.manifest)
+    root = archive.wave_root(base / "data", analysis.SITE, analysis.WAVE, analysis.VERSION)
+    root.mkdir(parents=True)
+    return {
+        "version": analysis.VERSION, "raw_root": str(root), "manifest": str(frozen.manifest),
+        "protocol": str(frozen.protocol), "freeze": str(frozen.freeze),
+        "lineages": sorted(freeze["core_api"]),
+    }, rows
+
+
+def capture(spec, row, *, aid=None, parent=None, start="2026-11-03T00:01:00Z",
+            end="2026-11-03T00:02:00Z", number=1):
+    attempt = {**row, "attempt_id": aid or row["attempt_id"],
+               "retry_of_attempt_id": parent, "attempt": number}
+    archive.archive_success(
+        data_root=Path(spec["raw_root"]).parents[2], row=attempt,
+        request_payload={"synthetic": True}, response_json={"answer": SECRET},
+        raw_response_text=SECRET, http_status=200, returned_model=row["model_id"],
+        usage={}, started_at_utc=start, completed_at_utc=end, duration_ms=1000,
+    )
 
 
 def seal_synthetic_tree(spec):
     root = Path(spec["raw_root"])
+    closure = root / "closure"
+    closure.mkdir(exist_ok=True)
+    for key in ("manifest", "protocol", "freeze"):
+        source = Path(spec[key])
+        frozen = closure / f"FROZEN_{key.upper()}{source.suffix}"
+        if source != frozen:
+            shutil.copyfile(source, frozen)
+            spec[key] = str(frozen)
     seal = root / "SHA256SUMS.txt"
     seal.write_text("".join(f"{audit.sha(path)}  {path.relative_to(root).as_posix()}\n"
-                            for path in sorted(root.rglob("*")) if path.is_file()), encoding="utf-8")
+                            for path in sorted(root.rglob("*")) if path.is_file() and path != seal), encoding="utf-8")
     return audit.sha(seal)
+
+
+def audit_opaque(spec):
+    read_object = audit._json
+
+    def reject_raw_decode(path):
+        if Path(path).parent.name == "api_raw":
+            raise AssertionError("Sealed QC must not decode a raw observation")
+        return read_object(path)
+
+    with patch.object(audit, "_json", side_effect=reject_raw_decode):
+        return audit.audit_wave(baseline_manifest=spec["manifest"], namespaces=[spec], wave_id=analysis.WAVE,
+                                now=datetime(2026, 11, 5, 1, tzinfo=timezone.utc), sidecars_only=True)
 
 
 class W02AnalysisTests(unittest.TestCase):
@@ -26,7 +83,7 @@ class W02AnalysisTests(unittest.TestCase):
         temp = tempfile.TemporaryDirectory()
         cls.addClassCleanup(temp.cleanup)
         cls.home = Path(temp.name)
-        cls.spec, cls.rows = fixture(cls.home, version="2.0.1")
+        cls.spec, cls.rows = fixture(cls.home)
         cls.coded_rows = []
         for form, count in (("I03-EN", 7), ("I05-JA", 8), ("I05-EN", 10), ("I01-EN", 1), ("I07-JA", 2)):
             selected = [r for r in cls.rows if r["service_lineage_id"] == "MIBO-SL-001"
@@ -62,10 +119,7 @@ class W02AnalysisTests(unittest.TestCase):
                 cls.coded_rows.append(dict(zip(analysis.CODING_FIELDS, (oid, cid, validity, kind, state, score))))
 
         cls.seal_sha = seal_synthetic_tree(cls.spec)
-        cls.report = audit.audit_wave(
-            baseline_manifest=cls.spec["manifest"], namespaces=[cls.spec], wave_id=analysis.WAVE,
-            now=datetime(2026, 11, 5, 1, tzinfo=timezone.utc),
-        )
+        cls.report = audit_opaque(cls.spec)
 
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory(dir=self.home)
@@ -156,7 +210,7 @@ class W02AnalysisTests(unittest.TestCase):
             self.assertEqual(path.read_bytes(), (self.base / "second" / path.name).read_bytes())
 
     def test_complete_960_capture_rehearsal(self):
-        spec, rows = fixture(self.base / "full", version=analysis.VERSION)
+        spec, rows = fixture(self.base / "full")
         coded_rows = []
         for row in rows:
             capture(spec, row)
@@ -167,8 +221,7 @@ class W02AnalysisTests(unittest.TestCase):
                 oid, oid, "valid", "answer" if anchor else "", state, points,
             ))))
         self.seal_sha = seal_synthetic_tree(spec)
-        report = audit.audit_wave(baseline_manifest=spec["manifest"], namespaces=[spec], wave_id=analysis.WAVE,
-                                 now=datetime(2026, 11, 5, 1, tzinfo=timezone.utc))
+        report = audit_opaque(spec)
         write_json(self.report_path, report)
         self.coding.write_bytes(analysis.csv_bytes(coded_rows, analysis.CODING_FIELDS))
         self.approve()
@@ -184,6 +237,30 @@ class W02AnalysisTests(unittest.TestCase):
 
     def test_rejects_seal_mismatch(self):
         self.assert_rejected(self.invoke(seal="0" * 64))
+
+    def test_requires_opaque_audit_from_the_same_checkout(self):
+        for changes in ({"capture_evidence_mode": "legacy_raw_envelope_structure"},
+                        {"audit_tool_sha256": "0" * 64}):
+            write_json(self.report_path, {**self.report, **changes})
+            self.assert_rejected(self.invoke())
+
+    def test_strict_audit_requires_seal_bound_inputs_and_complete_sidecar(self):
+        spec, rows = fixture(self.base / "strict")
+        capture(spec, rows[0])
+        with self.assertRaisesRegex(ValueError, "verified sealed namespace"):
+            audit_opaque(spec)
+        unsealed_copy = spec["manifest"]
+        seal_synthetic_tree(spec)
+        with self.assertRaisesRegex(ValueError, "seal-bound frozen inputs"):
+            audit_opaque({**spec, "manifest": unsealed_copy})
+        meta = next((Path(spec["raw_root"]) / "metadata").glob("*.json"))
+        data = audit._json(meta)
+        del data["technical_metadata_version"]
+        write_json(meta, data)
+        seal_synthetic_tree(spec)
+        report = audit_opaque(spec)
+        self.assertEqual(report["totals"]["verified_capture"], 0)
+        self.assertIn("technical_capture_sidecar_invalid", report["observations"][0]["issues"])
 
     def test_rejects_bad_approval_and_environment(self):
         for changes in ({"decision": "draft"}, {"environment": {}}, {"input_hashes": {}},
