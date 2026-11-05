@@ -25,7 +25,8 @@ def fixture(base, version="2.0.2", wave_id="MIBO2-W02", lineages=None, profile=N
     root = home / "raw"
     for name in ("metadata", "api_raw", "failures", "dispatch", "deviations"):
         (root / name).mkdir(parents=True, exist_ok=True)
-    protocol = json.loads((CONFIG / ("core_v2_protocol.v" + version + ".json")).read_text())
+    protocol_name = "core_v2_agent_protocol.v2.0.1.json" if version == "2.0.1" else f"core_v2_protocol.v{version}.json"
+    protocol = json.loads((CONFIG / protocol_name).read_text())
     freeze = {"core_api": {"MIBO-SL-00" + str(n): {"model_id": "synthetic-model-" + str(n), "request_profile": profile or {"synthetic": True, "secret_value": SECRET}} for n in range(1, 5)}}
     pp, fp = home / "protocol.json", home / "freeze.json"
     write_json(pp, protocol); write_json(fp, freeze)
