@@ -2,7 +2,22 @@
 
 ## Current scientific release
 
-The authoritative frozen scientific specification is:
+The current published protocol is **MIBO Core Protocol Package v2.1**,
+published 7 November 2026, DOI
+[10.5281/zenodo.24029860](https://doi.org/10.5281/zenodo.24029860).
+Use the unchanged ZIP together with its finalization declaration.
+
+- [Publication provenance and exact artifact hashes](v2.1/PUBLICATION.md).
+- [Citation guide](v2.1/CITATION_GUIDE.md).
+- [W03 analysis v1.1 registration information](analysis/W03-URL-variation-v1.1/REGISTRATION.md).
+
+Core v2.0 remains the historical four-lineage API parent,
+DOI 10.5281/zenodo.22264635. Publication does not authorize observation,
+scoring or runtime activation.
+
+## Frozen historical v1.0 source
+
+The inherited instrument, Codebook and SAP retain their frozen v1.0 source:
 
 > **MIBO Core Protocol Package v1.0**  
 > Scientific freeze: 15 August 2026  
@@ -15,7 +30,11 @@ The Zenodo record is the archival source of truth for the exact v1.0 package and
 
 The files in this directory whose names contain `v1.0-rc3` are historical release-candidate artifacts retained for provenance. They are **not** the active protocol and should not be cited or implemented in place of the frozen Zenodo v1.0 release.
 
-The current GitHub implementation uses the v1.0 DOI and frozen machine-readable instrument/service/wave configuration under `automation/config/`. Root-level `PRE_WAVE1_EXECUTION_GATE.md`, current governance files, execution-record templates, `CITATION.cff`, and repository documentation have been synchronized to v1.0.
+The inherited v1.0 machine-readable instrument/service/wave configuration stays
+under `automation/config/`. The v1.0 execution gates and governance records
+remain version-specific historical records, not automatic authorization for
+the prospective v2.1 three-family design. The root `CITATION.cff`
+preferred-citation now points to the published v2.1 protocol.
 
 ## Frozen v1.0 package components
 

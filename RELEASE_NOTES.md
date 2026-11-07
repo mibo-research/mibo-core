@@ -1,3 +1,13 @@
+# Release notes
+
+The current published release is **MIBO Core v2.1**, published 7 November 2026,
+DOI [`10.5281/zenodo.24029860`](https://doi.org/10.5281/zenodo.24029860).
+See the [v2.1 publication record and unchanged artifact hashes](docs/v2.1/PUBLICATION.md)
+and [W03 analysis v1.1 registration information](docs/analysis/W03-URL-variation-v1.1/REGISTRATION.md).
+Publication is not observation/scoring authorization.
+
+The following notes describe the historical v1.0 release, not the current API panel.
+
 # Release Notes — MIBO Core Protocol Package v1.0
 
 **Scientific freeze:** 15 August 2026  

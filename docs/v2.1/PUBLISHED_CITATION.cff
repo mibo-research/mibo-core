@@ -1,0 +1,14 @@
+cff-version: 1.2.0
+message: "Cite the published Core v2.1 protocol using these metadata. Read the unchanged ZIP with its separate finalization declaration; publication does not claim completed AI validation or authorize API execution."
+title: "MIBO Core Protocol Package v2.1: Three-Series API Observatory and Reciprocal AI Coding"
+version: "2.1"
+date-released: "2026-11-07"
+doi: "10.5281/zenodo.24029860"
+url: "https://zenodo.org/records/24029860"
+authors:
+  - family-names: "Sasano"
+    given-names: "Kento"
+    orcid: "https://orcid.org/0009-0009-3853-8029"
+    affiliation: "Okayama University; Keio Research Institute at SFC, Keio University"
+repository-code: "https://github.com/mibo-research/mibo-core"
+license: CC-BY-4.0

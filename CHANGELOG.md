@@ -1,5 +1,17 @@
 # Changelog
 
+## v2.1 — 2026-11-07
+
+### Published protocol and documentary adoption
+
+- published Core v2.1 under DOI `10.5281/zenodo.24029860`, retaining the reviewed r6 ZIP unchanged and adding a separate finalization declaration;
+- adopted the prospective three-family panel and W03 analysis v1.1 component through that declaration, without rewriting W03 v1.0 or historical observations;
+- fixed the public release/citation links while retaining the source archive's preparation-time Draft labels and false execution flags; and
+- kept unvalidated development materials, external-verification holds, private freezes, readiness and observation/scoring permissions separate from publication.
+
+See [publication provenance](docs/v2.1/PUBLICATION.md) and
+[W03 registration information](docs/analysis/W03-URL-variation-v1.1/REGISTRATION.md).
+
 ## v2.0 — 2026-09-03
 
 ### Prospective scientific release

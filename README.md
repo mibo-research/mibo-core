@@ -1,15 +1,21 @@
 # MIBO Core
 
-- **Current scientific release:** MIBO Core Protocol Package v2.0
-- **DOI:** https://doi.org/10.5281/zenodo.22264635
-- **Prospective registration:** 3 September 2026
-- **First v2.0 field window:** 6 October 2026 00:00 UTC
+- **Current scientific release:** MIBO Core Protocol Package v2.1
+- **DOI:** https://doi.org/10.5281/zenodo.24029860
+- **Publication date:** 7 November 2026
+- **First v2.1 field window:** 1–3 December 2026 00:00 UTC (W03)
+- **Published parent v2.0 DOI:** https://doi.org/10.5281/zenodo.22264635
 - **Historical v1.0 DOI:** https://doi.org/10.5281/zenodo.21936410
 - **License for protocol text:** CC BY 4.0
-- **Original software in the prospective v2.1 package:** MIT, within
+- **Original software in the v2.1 package:** MIT, within
   [the component-specific license scope](LICENSE_NOTICE.md); existing terms preserved.
 
-MIBO Core is the common sentinel-panel program of MIBO for longitudinal observation of generative-AI information behavior. The **Zenodo v2.0 record is the authoritative prospective specification for the API Core Interface (`ACI`) condition**. The Zenodo v1.0 record remains the frozen historical specification for its public-interface design; it is not amended, backfilled, or relabeled by v2.0. This GitHub repository is the public operational mirror and implementation workspace.
+MIBO Core is the common sentinel-panel program of MIBO for longitudinal observation of generative-AI information behavior. The **Zenodo v2.1 record, read with its separate finalization declaration and unchanged reviewed ZIP, is the current prospective specification for the three-series API Core Interface (`ACI`) from W03**. The v2.0 four-lineage and v1.0 public-interface records remain frozen historical specifications; no earlier observations or denominators are relabeled. This GitHub repository is the public operational mirror and implementation workspace.
+
+See the [v2.1 publication and exact artifact bindings](docs/v2.1/PUBLICATION.md),
+[citation guide](docs/v2.1/CITATION_GUIDE.md), and
+[W03 analysis v1.1 registration information](docs/analysis/W03-URL-variation-v1.1/REGISTRATION.md).
+Publication is not permission to run observation or scoring APIs.
 
 MIBO is composed of **MIBO Core, MIBO Satellite, and MIBO Network**.
 
@@ -22,7 +28,7 @@ The founding and methods preprint provides the scholarly account of the MIBO des
 
 The paper is a companion scholarly output. It does **not** replace or amend the frozen MIBO Core Protocol Package v1.0, and its publication is not an additional MIBO-W01 start condition.
 
-## Current v2.0 design
+## Historical v2.0 API design
 
 - fully automated, stateless provider-API observation on a controlled private runtime;
 - a distinct API Core Interface (`ACI`) condition, never labeled Ecological Live;
@@ -35,34 +41,38 @@ The paper is a companion scholarly output. It does **not** replace or amend the 
 
 See `docs/v2.0/` and DOI `10.5281/zenodo.22264635`.
 
-## Prospective three-series implementation (v2.1 draft; not registered)
+## Published v2.1 three-series design
 
-The owner-directed next design uses only OpenAI, Anthropic/Claude and Google/Gemini.
+The owner-directed prospective design uses only OpenAI, Anthropic/Claude and Google/Gemini.
 The version-specific collector supports 720 initial requests in ordinary waves
 and 840 in calibration waves, with a separate `v2.1/` archive namespace. Historical
 v2.0–v2.0.4 four-lineage protocols, denominators and archives remain unchanged.
-The proposed reciprocal AI method uses the two *other* provider families for
+The reciprocal AI method uses the two *other* provider families for
 each source and shared instrument-specific calibration; it is not evidence of
 completed calibration or external/human validity.
 
-See [draft amendment and registration checklist](docs/v2.1/README.md).
-The local root `CITATION.cff` now describes the unpublished `2.1-draft`, not a
-released v2.1. The current **published** scientific release above remains v2.0;
-its [unchanged citation](docs/v2.1/reference/PUBLISHED_CORE_v2.0.CITATION.cff)
-and DOI are not reassigned to the draft. The W03 analysis document has its own
-`1.1-draft` version. See [citation/version boundaries](docs/v2.1/CITATION_GUIDE.md).
-Author metadata, existing affiliations/funding/COI, expanded AI-assistance
-disclosure and the CC BY 4.0 / MIT separation are owner-confirmed locally,
-not a publication, registration, empirical-validation or execution approval.
-`automation/config/core_v21_protocol.draft.json` is deliberately non-runnable:
-the owner selected W03, but the separately published W03 analysis amendment,
-new Core registration, reviewed authored content,
-exact private freezes and hash-bound human authorization are still required.
-W03 baseline/W02 primary-comparison exclusion and operational/validity scoring
-separation are now owner-approved, not yet publicly registered or empirically qualified.
-The new service/env files are uninstalled templates with all execution/readiness
-sentinels disabled. No provider request, publication or live deployment is part
-of preparing this draft. Do not reuse historical start/staging scripts for v2.1.
+Core v2.1 was published on 7 November 2026 under DOI
+[`10.5281/zenodo.24029860`](https://doi.org/10.5281/zenodo.24029860).
+Its [finalization declaration](https://zenodo.org/records/24029860/files/MIBO-Core-v2.1-Finalization-Declaration-20261107.txt?download=1)
+adopts the unchanged reviewed archive and the separately identified W03
+analysis component v1.1. Embedded `2.1-draft` / `1.1-draft` names and flags
+remain preparation-time snapshots. The root `CITATION.cff` retains that
+source-template metadata while its `preferred-citation` points to the formal
+published v2.1 protocol; a [standalone published citation](docs/v2.1/PUBLISHED_CITATION.cff)
+is also provided.
+
+W03 STD is the new baseline, W02 is excluded from current primary comparisons,
+and W04 WA/WB calibration remains separate. The 52-variable profile and 72
+authored examples are unvalidated development materials; AI agreement is not
+independent-reference validity. Unreferenced AI codes remain auxiliary/exploratory,
+and H/external-verification values stay held.
+
+`automation/config/core_v21_protocol.draft.json` and the service/env files
+remain unarmed preparation templates, not completed runtime freezes or named
+execution authorizations. Fresh private model/settings, terms/access, readiness,
+runtime/source/clock and hash-bound human authorization gates still apply.
+No observation, scoring or model-readiness API is authorized by publication
+or this documentation update. Do not reuse historical start/staging scripts.
 
 ## Historical v1.0 design
 
@@ -80,18 +90,19 @@ of preparing this draft. Do not reuse historical start/staging scripts for v2.1.
 
 Use the following precedence:
 
-1. **Zenodo v2.0:** `10.5281/zenodo.22264635` — current API-only scientific specification;
-2. **Zenodo v1.0:** `10.5281/zenodo.21936410` — frozen historical public-interface specification;
-3. the matching versioned documents and governance files mirrored in this repository;
-4. prospectively completed private execution/configuration records;
-5. implementation code under `automation/` and `runtime/`; and
-6. historical release-candidate files, retained only for provenance.
+1. **Zenodo v2.1:** `10.5281/zenodo.24029860` — current three-series protocol, unchanged ZIP and separate finalization declaration;
+2. **Zenodo v2.0:** `10.5281/zenodo.22264635` — historical four-lineage API specification;
+3. **Zenodo v1.0:** `10.5281/zenodo.21936410` — frozen historical public-interface specification and inherited instrument/Codebook/SAP;
+4. the matching versioned documents and governance files mirrored in this repository;
+5. prospectively completed private execution/configuration records;
+6. implementation code under `automation/` and `runtime/`; and
+7. historical release-candidate files, retained only for provenance.
 
 A software change must not silently change the frozen scientific specification.
 
 ## Automation status
 
-The repository contains a protocol-locked, fail-closed automation layer for v2.0 API Core and retains the v1.0 operational implementation for provenance:
+The repository contains the version-specific v2.1 implementation, the fail-closed v2.0 API layer it extends, and the v1.0 operational implementation retained for provenance:
 
 - machine-readable frozen service, wave, and 24-form instrument configuration;
 - deterministic manifest generation and strict integrity validation;
@@ -101,11 +112,13 @@ The repository contains a protocol-locked, fail-closed automation layer for v2.0
 - a terms-aware **human-operated** Ecological Live workstation that automates local manifest/tasking, timing, hashing, provenance, retry bookkeeping, and QC without scraping or controlling consumer webpages; and
 - a read-only Codex maintainer workflow for engineering/readiness review.
 
-See `docs/v2.0/`, `automation/core_v2_runner.py`, and the v2.0 runtime templates for the current operational layer.
+See [v2.1 documentation](docs/v2.1/README.md), `automation/core_v2_runner.py`,
+and the version-scoped runtime templates. Their presence is not installation,
+activation or execution approval.
 
 ## Pre-wave execution gate
 
-The v2.0 scientific specification is public, but time-sensitive execution facts remain prospective. Before confirmatory collection, the v2.0 Terms/access review, exact provider/model freeze, synthetic readiness checks, deterministic manifest validation, controlled-runtime health checks, and human-signed execution authorization must all be complete. The dedicated execution sentinel remains disabled until that gate closes.
+The v2.1 scientific specification is public, but time-sensitive execution facts remain prospective. Before collection, the applicable Terms/access review, exact provider/model freeze, separately authorized readiness checks, deterministic manifest validation, controlled-runtime health checks, and human-signed execution authorization must all be complete. Both v2.1 observation sentinels remain disabled until the matching private gate closes; scoring has its own later authorization and qualification gates.
 
 Failure to close a gate postpones or narrows collection; it does not authorize model substitution, retrospective alteration, or self-authorization.
 
@@ -116,6 +129,10 @@ Files whose names end in `v1.0-rc3` are retained as historical pre-release artif
 ## Citation
 
 For the current API-only protocol package:
+
+Sasano, K. (2026). *MIBO Core Protocol Package v2.1: Three-Series API Observatory and Reciprocal AI Coding* (Version 2.1). Zenodo. https://doi.org/10.5281/zenodo.24029860
+
+For the historical four-lineage API protocol package:
 
 Sasano, K. (2026). *MIBO Core Protocol Package v2.0*. Zenodo. https://doi.org/10.5281/zenodo.22264635
 
