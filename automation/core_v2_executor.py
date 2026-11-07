@@ -14,6 +14,7 @@ from typing import Any
 import core_v2_archive as archive
 import core_v2_execution_state as execution_state
 import core_v2_runner as runner
+import core_v21_policy as three_series
 import mibo_runner as v1
 from provider_adapters import AdapterFailure, call_provider
 from retry_policy import decide_retry
@@ -74,6 +75,25 @@ def load_authorization(path: Path, *, protocol_path: Path, manifest_path: Path,
         admission.validate_authorization(data, protocol_path=protocol_path,
             freeze_path=freeze_path, protocol=protocol,
             freeze=json.loads(freeze_path.read_text()))
+    if version == runner.THREE_SERIES_PROTOCOL_VERSION:
+        for field in three_series.AUTHORIZATION_GATES:
+            if data.get(field) is not True:
+                raise ValueError(f"v2.1 authorization gate {field} is not true")
+        freeze = json.loads(freeze_path.read_text(encoding="utf-8"))
+        authorized = runner.parse_aware_utc(data["authorized_at_utc"])
+        if not (runner.parse_aware_utc(freeze["frozen_at_utc"]) <= authorized
+                < runner.parse_aware_utc(runner.wave(protocol, wave_id)["start_utc"])):
+            raise ValueError("v2.1 human authorization must follow the freeze and precede the original start")
+        report_path = Path(data.get("readiness_report_file") or "")
+        if (not report_path.is_absolute() or not report_path.is_file()
+                or any(p.is_symlink() for p in (report_path, *report_path.parents))
+                or sha256_file(report_path) != data.get("readiness_report_sha256")):
+            raise ValueError("v2.1 authorization readiness report path/hash mismatch")
+        report = three_series.validate_readiness(report_path, protocol=protocol,
+            protocol_sha=expected_hashes["protocol_file_sha256"], freeze=freeze,
+            freeze_sha=expected_hashes["provider_freeze_sha256"])
+        if runner.parse_aware_utc(report["checked_at_utc"]) > authorized:
+            raise ValueError("v2.1 authorization cannot precede readiness")
     return data
 
 
@@ -92,6 +112,8 @@ def preflight(*, protocol_path: Path, manifest_path: Path, freeze_path: Path,
     validated_hashes = {path: sha256_file(path) for path in (
         protocol_path, manifest_path, freeze_path, authorization_path)}
     protocol, _ = runner.load_protocol(protocol_path)
+    if protocol["protocol_version"] == runner.THREE_SERIES_PROTOCOL_VERSION and require_credentials:
+        three_series.require_execution_sentinels()
     rows = runner.read_csv(manifest_path)
     errors = runner.validate_manifest(rows, protocol_path=protocol_path, freeze_path=freeze_path)
     if errors:
@@ -235,11 +257,24 @@ def execute(*, protocol_path: Path, manifest_path: Path, freeze_path: Path,
         freeze_path=freeze_path, authorization_path=authorization_path,
         data_root=data_root, require_credentials=True,
     )
+    def runtime_gate() -> None:
+        if rows[0]["protocol_version"] == runner.THREE_SERIES_PROTOCOL_VERSION:
+            import core_v2_prewave as prewave
+            prewave.validate_prewave(protocol_path=protocol_path, manifest_path=manifest_path,
+                freeze_path=freeze_path, authorization_path=authorization_path,
+                data_root=data_root, wave_id=rows[0]["wave_id"], site_id=rows[0]["site_id"],
+                expected_host=os.environ.get("MIBO_RUNTIME_HOST"),
+                expected_source_commit=os.environ.get("MIBO_CORE_V2_SOURCE_COMMIT"), strict_runtime=True)
+    runtime_gate()
     root = archive.wave_root(data_root, rows[0]["site_id"], rows[0]["wave_id"], rows[0]["protocol_version"])
     locked_identity = (rows[0]["site_id"], rows[0]["wave_id"], rows[0]["protocol_version"],
                        {row["attempt_id"] for row in rows})
-    with execution_state.lineage_locks(data_root, rows[0]["site_id"], rows[0]["wave_id"],
-                                       {row["service_lineage_id"] for row in rows}):
+    locked_lineages = {row["service_lineage_id"] for row in rows}
+    if rows[0]["protocol_version"] == runner.THREE_SERIES_PROTOCOL_VERSION:
+        # Also lock the historical fourth lineage, without collecting it:
+        # an old-version wave must not start concurrently with this new panel.
+        locked_lineages = {s["service_lineage_id"] for s in v1._services()}
+    with execution_state.lineage_locks(data_root, rows[0]["site_id"], rows[0]["wave_id"], locked_lineages):
         with execution_state.wave_lock(root):
             # A different namespace can retain an attempt while this process
             # waits for a lock. Re-run the frozen gates inside both locks.
@@ -251,6 +286,7 @@ def execute(*, protocol_path: Path, manifest_path: Path, freeze_path: Path,
                         {row["attempt_id"] for row in rows})
             if identity != locked_identity:
                 raise ValueError("execution scope changed while acquiring durable locks")
+            runtime_gate()
             _block_other_namespace_attempts(data_root, rows)
             return _execute_locked(protocol_path=protocol_path, manifest_path=manifest_path,
                 freeze_path=freeze_path, authorization_path=authorization_path,
@@ -270,6 +306,14 @@ def _block_other_namespace_attempts(data_root: Path, rows: list[dict[str, Any]])
             known_attempt_lineages[attempt['attempt_id']] = attempt['service_lineage_id']
     for other_version in sorted(runner.SUPPORTED_PROTOCOL_VERSIONS - {version}):
         other = archive.wave_root(data_root, site, wave, other_version)
+        involves_three_series = runner.THREE_SERIES_PROTOCOL_VERSION in {version, other_version}
+        if involves_three_series and any(
+                (other / folder).is_symlink() for folder in ("api_raw", "failures", "dispatch", "metadata")):
+            raise ValueError("other namespace state folder must not be a symlink")
+        if (involves_three_series
+                and any(next((other / folder).glob("*.json"), None) is not None
+                        for folder in ("api_raw", "failures", "dispatch", "metadata"))):
+            raise ValueError("prior protocol wave has retained attempts; no mid-wave v2.1 conversion; no replay")
         for lineage in lineages:
             if (other / 'metadata' / ('first-dispatch-' + lineage + '.json')).exists():
                 raise ValueError("another protocol namespace has retained lineage dispatch; no replay")
@@ -310,6 +354,17 @@ def _execute_locked(*, protocol_path: Path, manifest_path: Path,
         raise ValueError("authorization changed after validated preflight")
     pinned_inputs = {path: sha256_file(path) for path in (
         protocol_path, manifest_path, freeze_path, authorization_path)}
+    if rows[0]["protocol_version"] == runner.THREE_SERIES_PROTOCOL_VERSION:
+        three_series.require_execution_sentinels()
+        report_path = Path(_auth["readiness_report_file"])
+        protocol_data, _ = runner.load_protocol(protocol_path)
+        report = three_series.validate_readiness(report_path, protocol=protocol_data,
+            protocol_sha=pinned_inputs[protocol_path], freeze=freeze,
+            freeze_sha=pinned_inputs[freeze_path])
+        if sha256_file(report_path) != _auth["readiness_report_sha256"]:
+            raise ValueError("v2.1 readiness changed after authorization")
+        for path in [report_path, *three_series.readiness_evidence_paths(report_path, report)]:
+            pinned_inputs[path] = sha256_file(path)
     for field, path in (("protocol_file_sha256", protocol_path),
                         ("manifest_sha256", manifest_path),
                         ("provider_freeze_sha256", freeze_path)):
@@ -427,6 +482,8 @@ def _execute_locked(*, protocol_path: Path, manifest_path: Path,
             continue
         if any(sha256_file(path) != digest for path, digest in pinned_inputs.items()):
             raise ValueError("frozen execution input changed before dispatch")
+        if row["protocol_version"] == runner.THREE_SERIES_PROTOCOL_VERSION:
+            three_series.require_execution_sentinels()
         dispatched_at = current
         execution_state.claim_attempt(root, row,
             authorization_sha256=authorization_digest,
@@ -449,6 +506,8 @@ def _execute_locked(*, protocol_path: Path, manifest_path: Path,
                         "rule": "clock left registered dispatch bounds; retain claim; no automatic resend"})
             continue
         try:
+            if row["protocol_version"] == runner.THREE_SERIES_PROTOCOL_VERSION:
+                three_series.require_execution_sentinels()
             result = call_provider(
                 provider=row["provider"], model_id=row["model_id"],
                 prompt=prompts[row["query_form_id"]],

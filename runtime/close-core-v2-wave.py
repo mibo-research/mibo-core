@@ -113,7 +113,7 @@ def no_active_collectors() -> None:
             tokens = path.read_bytes().split(b"\0")
         except (FileNotFoundError, ProcessLookupError, PermissionError):
             continue
-        if any(t.rsplit(b"/", 1)[-1] in {b"core_v2_waiter.py", b"core_v2_executor.py"} for t in tokens):
+        if any(t.rsplit(b"/", 1)[-1] in {b"core_v2_waiter.py", b"core_v21_waiter.py", b"core_v2_executor.py"} for t in tokens):
             raise CloseError("An active Core v2 collector remains; closure aborted")
 
 
@@ -222,7 +222,8 @@ def load_unit(unit: str, wave: str, site: str, now: datetime) -> dict[str, Any]:
     root = data_root.resolve() / ("v" + protocol["protocol_version"]) / site / wave
     if not root.is_dir() or root.is_symlink() or (root / "closure").exists() or (root / "SHA256SUMS.txt").exists():
         raise CloseError("Missing wave or existing closure; preserve it and review before recovery")
-    sources = [Path(arg).resolve().parents[1] for arg in arguments if arg.endswith("/automation/core_v2_waiter.py")]
+    waiter_name = "core_v21_waiter.py" if protocol["protocol_version"] == runner.THREE_SERIES_PROTOCOL_VERSION else "core_v2_waiter.py"
+    sources = [Path(arg).resolve().parents[1] for arg in arguments if arg.endswith("/automation/" + waiter_name)]
     if len(sources) != 1:
         raise CloseError("Collector source cannot be resolved from the reviewed waiter command")
     source = sources[0]

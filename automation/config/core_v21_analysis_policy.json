@@ -1,0 +1,19 @@
+{
+  "policy_id": "MIBO-CORE-v21-W03-BASELINE-v1.0",
+  "status": "OWNER_APPROVED_LOCAL_NOT_REGISTERED",
+  "owner_decision_file": "docs/v2.1/OWNER_DECISION_BASELINE_SCORING_20261107.json",
+  "protocol_version": "2.1",
+  "baseline_wave": "MIBO2-W03",
+  "baseline_window": "STD",
+  "minimum_valid_n": 8,
+  "intended_n_per_cell": 10,
+  "automatic_baseline_substitution": false,
+  "W02_primary_comparison": false,
+  "W02_historical_records_preserved": true,
+  "future_common_three_W02_exploration_requires_separate_prospective_plan": true,
+  "first_calibration_wave": "MIBO2-W04",
+  "calibration_windows": ["WA", "WB"],
+  "calibration_separate_from_STD_baseline": true,
+  "primary_URL_analysis_requires_AI_qualification": false,
+  "actual_registration_or_execution_permission": false
+}

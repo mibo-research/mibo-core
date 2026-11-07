@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import argparse
 import csv
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 import hashlib
 import json
 import random
@@ -16,6 +16,7 @@ from pathlib import Path
 from typing import Any
 
 import mibo_runner as v1
+import core_v21_policy as three_series
 
 PROTOCOL_VERSION = "2.0"
 AGENT_PROTOCOL_VERSION = "2.0.1"
@@ -24,7 +25,8 @@ PRIORITY_PROTOCOL_VERSION = "2.0.3"
 STANDARD_PROTOCOL_VERSION = "2.0.4"
 SCOPED_PROTOCOL_VERSIONS = {ADMISSION_PROTOCOL_VERSION, PRIORITY_PROTOCOL_VERSION, STANDARD_PROTOCOL_VERSION}
 AGENT_PROTOCOL_VERSIONS = {AGENT_PROTOCOL_VERSION, *SCOPED_PROTOCOL_VERSIONS}
-SUPPORTED_PROTOCOL_VERSIONS = {PROTOCOL_VERSION, *AGENT_PROTOCOL_VERSIONS}
+THREE_SERIES_PROTOCOL_VERSION = three_series.VERSION
+SUPPORTED_PROTOCOL_VERSIONS = {PROTOCOL_VERSION, *AGENT_PROTOCOL_VERSIONS, THREE_SERIES_PROTOCOL_VERSION}
 PRIOR_REGISTRATION = "10.5281/zenodo.22264635"
 AGENT_CONTRACT = "direct-model-no-tools-v1"
 SCIENTIFIC_CLASS = "confirmatory_primary"
@@ -57,6 +59,14 @@ def sha256_file(path: Path) -> str:
     return h.hexdigest()
 
 
+def services_for_protocol(protocol: dict[str, Any]) -> list[dict[str, Any]]:
+    """Keep the frozen four-lineage registry; scope only the new version."""
+    services = v1._services()
+    if protocol["protocol_version"] == THREE_SERIES_PROTOCOL_VERSION:
+        return [s for s in services if s["service_lineage_id"] in three_series.LINEAGES]
+    return services
+
+
 def load_protocol(path: Path, *, require_final: bool = True) -> tuple[dict[str, Any], str]:
     data = json.loads(path.read_text(encoding="utf-8"))
     version = data.get("protocol_version")
@@ -83,8 +93,8 @@ def load_protocol(path: Path, *, require_final: bool = True) -> tuple[dict[str, 
     for field, value in expected.items():
         if data.get(field) != value:
             raise ValueError(f"Core v2 protocol {field} mismatch")
-    if data.get("required_service_lineages") != [s["service_lineage_id"] for s in v1._services()]:
-        raise ValueError("Core v2 protocol must contain the exact four frozen service lineages in order")
+    if data.get("required_service_lineages") != [s["service_lineage_id"] for s in services_for_protocol(data)]:
+        raise ValueError("Core protocol must contain its exact version-specific frozen service lineages in order")
     if data.get("preserves_prior_record") is not True:
         raise ValueError("Core v2 protocol must preserve the prior v1.0 record")
     if require_final:
@@ -122,6 +132,9 @@ def load_protocol(path: Path, *, require_final: bool = True) -> tuple[dict[str, 
             raise ValueError("Gemini Standard restoration policy mismatch")
         if data.get("prior_priority_amendment_registration_id") != "https://github.com/mibo-research/mibo-core/blob/04a903824842a09dcbc6f89612a47e55bc1b2304/docs/v2.0.3/AMENDMENT_v2.0.3.md":
             raise ValueError("prior Priority amendment registration mismatch")
+    if version == THREE_SERIES_PROTOCOL_VERSION:
+        original = json.loads((Path(__file__).parent / "config" / "core_v2_protocol.v2.0.json").read_text(encoding="utf-8"))
+        three_series.validate_protocol(data, original["waves"], require_final=require_final)
     waves = data.get("waves")
     if not isinstance(waves, list) or len(waves) != 12:
         raise ValueError("Core v2 protocol requires exactly twelve waves")
@@ -177,6 +190,8 @@ def load_freeze(path: Path, *, protocol: dict[str, Any], wave_id: str,
                 site_id: str) -> tuple[dict[str, Any], str]:
     data = json.loads(path.read_text(encoding="utf-8"))
     version = protocol["protocol_version"]
+    if version == THREE_SERIES_PROTOCOL_VERSION:
+        three_series.validate_wave(protocol, wave_id)
     if data.get("schema_version") != version or data.get("protocol_version") != version:
         raise ValueError("Core v2 provider freeze schema/protocol version mismatch")
     if data.get("protocol_registration_id") != protocol.get("protocol_registration_id"):
@@ -187,14 +202,15 @@ def load_freeze(path: Path, *, protocol: dict[str, Any], wave_id: str,
         raise ValueError("Core v2 provider freeze surface/environment mismatch")
     if not data.get("frozen_at_utc"):
         raise ValueError("Core v2 provider freeze is not finalized")
-    if version in AGENT_PROTOCOL_VERSIONS:
+    if version in AGENT_PROTOCOL_VERSIONS or version == THREE_SERIES_PROTOCOL_VERSION:
         if parse_aware_utc(data["frozen_at_utc"]) < parse_aware_utc(protocol["prospectively_registered_at_utc"]):
             raise ValueError("Agent freeze must follow prospective amendment registration")
     entries = data.get("core_api")
-    expected_ids = {s["service_lineage_id"] for s in v1._services()}
+    services = services_for_protocol(protocol)
+    expected_ids = {s["service_lineage_id"] for s in services}
     if not isinstance(entries, dict) or set(entries) != expected_ids:
-        raise ValueError("Core v2 provider freeze must contain exactly the four Core lineages")
-    for service in v1._services():
+        raise ValueError("Core provider freeze must contain exactly its version-specific Core lineages")
+    for service in services:
         sid = service["service_lineage_id"]
         cfg = entries[sid]
         if not isinstance(cfg, dict) or cfg.get("status") != "eligible":
@@ -221,6 +237,21 @@ def load_freeze(path: Path, *, protocol: dict[str, Any], wave_id: str,
             raise ValueError(f"{sid} request_profile requires api_key_env")
         if profile.get("max_output_tokens") is None:
             raise ValueError(f"{sid} request_profile requires max_output_tokens")
+        if version == THREE_SERIES_PROTOCOL_VERSION:
+            three_series.validate_profile(service["provider"], profile)
+            if not isinstance(cfg["model_id"], str) or not cfg["model_id"].strip():
+                raise ValueError("v2.1 requires an exact nonempty model identifier")
+            frozen = parse_aware_utc(data["frozen_at_utc"])
+            try:
+                terms_date = date.fromisoformat(cfg["terms_review_date"])
+            except (TypeError, ValueError) as exc:
+                raise ValueError("v2.1 terms review requires a dated record") from exc
+            if terms_date > frozen.date():
+                raise ValueError("v2.1 terms review cannot postdate its freeze")
+            if not (parse_aware_utc(protocol["prospectively_registered_at_utc"])
+                    <= parse_aware_utc(cfg["verified_at_utc"]) <= frozen
+                    < parse_aware_utc(wave(protocol, wave_id)["start_utc"])):
+                raise ValueError("v2.1 metadata/freeze must be prospective for the selected original window")
         if service["provider"] == "Perplexity AI" and profile.get("disable_search") is not True:
             raise ValueError(f"{sid} Perplexity API-only Core requires disable_search=true")
         if service["provider"] == "Google":
@@ -269,8 +300,8 @@ def generate_manifest(*, protocol_path: Path, freeze_path: Path,
         freeze_path, protocol=protocol, wave_id=wave_id, site_id=site_id,
     )
     forms = v1._forms()
-    services = v1._services()
-    if len(forms) != 24 or len(services) != 4:
+    services = services_for_protocol(protocol)
+    if len(forms) != 24 or len(v1._services()) != 4:
         raise ValueError("frozen v1.0 instrument/service source is not 24 forms x 4 lineages")
     seed = deterministic_seed(wave_id, site_id)
     rng = random.Random(seed)
@@ -362,9 +393,9 @@ def validate_manifest(rows: list[dict[str, Any]], *, protocol_path: Path,
         freeze, freeze_sha = load_freeze(freeze_path, protocol=protocol, wave_id=wave_id, site_id=site_id)
     except ValueError as exc:
         return [str(exc)]
-    services = {s["service_lineage_id"]: s for s in v1._services()}
+    services = {s["service_lineage_id"]: s for s in services_for_protocol(protocol)}
     forms = {f["query_form_id"]: f for f in v1._forms()}
-    expected_total = 1120 if wave_cfg["calibration_wave"] else 960
+    expected_total = len(services) * (280 if wave_cfg["calibration_wave"] else 240)
     if len(rows) != expected_total:
         errors.append(f"Core v2 API manifest count {len(rows)} != {expected_total}")
     ids = [r.get("attempt_id") for r in rows]
@@ -436,7 +467,7 @@ def validate_manifest(rows: list[dict[str, Any]], *, protocol_path: Path,
                 errors.append(f"{sid} {qid} count must equal {expected_form}")
     if wave_cfg["calibration_wave"]:
         counts = {window: sum(r.get("window_id") == window for r in rows) for window in ("WA", "WB", "STD")}
-        if counts != {"WA": 160, "WB": 160, "STD": 800}:
+        if counts != {"WA": 40 * len(services), "WB": 40 * len(services), "STD": 200 * len(services)}:
             errors.append(f"Core v2 calibration window counts {counts} are invalid")
     elif any(r.get("window_id") != "STD" for r in rows):
         errors.append("Core v2 non-calibration manifest must use STD only")

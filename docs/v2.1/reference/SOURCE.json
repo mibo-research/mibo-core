@@ -1,0 +1,27 @@
+{
+  "record_id": 21936410,
+  "title": "MIBO Core Protocol Package v1.0",
+  "version": "1.0",
+  "doi": "10.5281/zenodo.21936410",
+  "record_url": "https://zenodo.org/records/21936410",
+  "metadata_url": "https://zenodo.org/api/records/21936410",
+  "archive_url": "https://zenodo.org/api/records/21936410/files/mibo-core-protocol-v1.0.zip/content",
+  "archive_filename": "mibo-core-protocol-v1.0.zip",
+  "archive_bytes": 228354,
+  "Zenodo_MD5_verified": "2e04296d351894a3e3378b6f493f9504",
+  "archive_sha256": "d0f70e48b11fa98eaaca444f6ed45c02f3544f2e7e91db7572ee0e688be71fca",
+  "internal_SHA256SUMS_verified_files": 17,
+  "retrieved_date_jst": "2026-11-07",
+  "extraction_path_prefix": "MIBO_Core_Protocol_Package_v1.0/",
+  "copies_preserve_archive_bytes": true,
+  "files": {
+    "MIBO_Query_Codebook_v1.0.md": "c6e19da13c5f64aaf073bf557518f90d69579c3697ace7791a9153f67b18218e",
+    "MIBO_Statistical_Analysis_Plan_v1.0.md": "394523064ebfa24dd5762d4bb99288df6d8256376a5a00a130652b3517810992",
+    "MIBO_Fixed_Query_Instrument_v1.0.md": "4f3eb973d5488a13f67caf4aaff1308073577e5f67666b89041e7215cde611e9",
+    "SHA256SUMS.txt": "6790830acfcd6504d13cc9af49ccef1d5432fdd1987e71d1e28a095294e305f1"
+  },
+  "license": "CC BY 4.0",
+  "attribution": "Sasano, K. (2026). MIBO Core Protocol Package v1.0. Zenodo. https://doi.org/10.5281/zenodo.21936410",
+  "prior_rc3_reference_is_not_canonical": true,
+  "source_retrieval_does_not_authorize_model_API_calls": true
+}

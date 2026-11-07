@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Any
 
 import core_v2_runner as runner
+import core_v21_policy as three_series
 from raw_archive import canonical_json_bytes
 
 
@@ -54,6 +55,9 @@ def build_bundle(*, protocol_path: Path, wave_id: str, site_id: str,
         admitted = admission.scope(preflight.get("admitted_lineages"))
         admission.validate_report(preflight_report_path, protocol=protocol, protocol_sha=protocol_sha,
             freeze=freeze, freeze_sha=freeze_sha, admitted=admitted)
+    elif protocol["protocol_version"] == runner.THREE_SERIES_PROTOCOL_VERSION:
+        three_series.validate_readiness(preflight_report_path, protocol=protocol,
+            protocol_sha=protocol_sha, freeze=freeze, freeze_sha=freeze_sha)
     elif not isinstance(smoke, list) or len(smoke) != 4 or not all(c.get("pass") is True for c in smoke):
         raise ValueError("Core v2 bundle requires four passing synthetic smoke checks")
     rows = runner.generate_manifest(
@@ -72,6 +76,11 @@ def build_bundle(*, protocol_path: Path, wave_id: str, site_id: str,
     _write_exclusive(protocol_copy, protocol_path.read_bytes())
     _write_exclusive(freeze_copy, freeze_path.read_bytes())
     _write_exclusive(preflight_copy, preflight_report_path.read_bytes())
+    if protocol["protocol_version"] == runner.THREE_SERIES_PROTOCOL_VERSION:
+        for path in three_series.readiness_evidence_paths(preflight_report_path, preflight):
+            _write_exclusive(config / path.relative_to(preflight_report_path.parent), path.read_bytes())
+        three_series.validate_readiness(preflight_copy, protocol=protocol,
+            protocol_sha=protocol_sha, freeze=freeze, freeze_sha=freeze_sha)
     manifest_path = manifests / f"{wave_id}-{site_id}-API-CORE.csv"
     runner.write_csv(rows, manifest_path)
     manifest_sha = sha256_file(manifest_path)
@@ -130,6 +139,10 @@ def build_bundle(*, protocol_path: Path, wave_id: str, site_id: str,
         authorization["prospective_gemini_priority_amendment_reviewed"] = False
     if protocol["protocol_version"] == runner.STANDARD_PROTOCOL_VERSION:
         authorization["prospective_gemini_standard_amendment_reviewed"] = False
+    if protocol["protocol_version"] == runner.THREE_SERIES_PROTOCOL_VERSION:
+        authorization.update({field: False for field in three_series.AUTHORIZATION_GATES})
+        authorization.update(readiness_report_file=str(preflight_copy.resolve()),
+            readiness_report_sha256=sha256_file(preflight_copy))
     _write_exclusive(
         out_dir / "core_v2_execution_authorization.template.json",
         canonical_json_bytes(authorization),

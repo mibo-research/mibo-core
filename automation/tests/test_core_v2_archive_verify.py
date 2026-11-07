@@ -378,7 +378,10 @@ class ArchiveTests(unittest.TestCase):
                 (root / "UNSCANNED_EXTRA").write_bytes(PRIVATE)
             return native_listdir(fd)
         with patch.object(verify.os, "listdir", side_effect=mutated_listdir):
-            with self.assertRaisesRegex(verify.ArchiveVerificationError, "directory changed"):
+            # The entry mutation can be detected by the directory signature or
+            # the whole-tree snapshot comparison, depending on enumeration order.
+            # Both must remain fail-closed; this does not relax the verifier.
+            with self.assertRaisesRegex(verify.ArchiveVerificationError, "(?:directory|tree) changed"):
                 self.check(restored_data_root=root)
 
     def test_previously_hashed_file_modified_during_scan_rejected(self):

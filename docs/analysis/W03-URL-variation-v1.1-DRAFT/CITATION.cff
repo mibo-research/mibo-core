@@ -1,0 +1,11 @@
+cff-version: 1.2.0
+message: "UNPUBLISHED prospective analysis amendment v1.1-draft, paired with Core v2.1-draft. No new DOI or registration identifier exists. The earlier v1.0 registration remains historical, not the identifier of this draft."
+title: "W03 Derivative URL-String Analysis v1.1: Prospective Three-Series Amendment (DRAFT)"
+version: "1.1-draft"
+authors:
+  - family-names: "Sasano"
+    given-names: "Kento"
+    orcid: "https://orcid.org/0009-0009-3853-8029"
+    affiliation: "Okayama University; Keio Research Institute at SFC, Keio University"
+repository-code: "https://github.com/mibo-research/mibo-core"
+license: CC-BY-4.0

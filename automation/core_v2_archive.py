@@ -58,7 +58,7 @@ def _write_exclusive(path: Path, data: bytes) -> str:
 
 def wave_root(data_root: Path, site_id: str, wave_id: str,
               protocol_version: str = PROTOCOL_VERSION) -> Path:
-    if protocol_version not in {"2.0", "2.0.1", "2.0.2", "2.0.3", "2.0.4"}:
+    if protocol_version not in {"2.0", "2.0.1", "2.0.2", "2.0.3", "2.0.4", "2.1"}:
         raise ValueError("unsupported Core archive protocol version")
     if any(not isinstance(value, str) or not re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9_-]*', value)
            for value in (site_id, wave_id)):

@@ -1,18 +1,22 @@
 cff-version: 1.2.0
-message: "If you use the current API-only protocol package, please cite its version-specific Zenodo record."
-title: "MIBO Core Protocol Package v2.0"
-version: "2.0"
-date-released: "2026-09-03"
+message: "UNPUBLISHED v2.1 prospective draft, not a registered or released version. This citation describes protocol text (CC BY 4.0); original software is separately MIT-licensed under LICENSE_NOTICE.md. Parent DOIs in references do not identify this draft."
+title: "MIBO Core Protocol Package v2.1: Three-Series API Observatory and Reciprocal AI Coding (DRAFT)"
+version: "2.1-draft"
 authors:
   - family-names: "Sasano"
     given-names: "Kento"
     orcid: "https://orcid.org/0009-0009-3853-8029"
     affiliation: "Okayama University; Keio Research Institute at SFC, Keio University"
-doi: "10.5281/zenodo.22264635"
 repository-code: "https://github.com/mibo-research/mibo-core"
-url: "https://doi.org/10.5281/zenodo.22264635"
 license: CC-BY-4.0
 references:
+  - type: generic
+    title: "MIBO Core Protocol Package v2.0"
+    version: "2.0"
+    date-released: "2026-09-03"
+    doi: "10.5281/zenodo.22264635"
+    url: "https://doi.org/10.5281/zenodo.22264635"
+    scope: "Published API protocol parent only; not the identifier or registration of this unpublished v2.1 draft."
   - type: generic
     title: "MIBO Core Protocol Package v1.0"
     doi: "10.5281/zenodo.21936410"
