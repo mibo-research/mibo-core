@@ -134,6 +134,8 @@ def validate_prewave(*, protocol_path: Path, manifest_path: Path, freeze_path: P
         raise ValueError("prewave clock must be timezone-aware")
     current = current.astimezone(timezone.utc)
     protocol, _ = runner.load_protocol(protocol_path)
+    if protocol["protocol_version"] == runner.THREE_SERIES_PROTOCOL_VERSION:
+        runner.three_series.require_execution_sentinels()
     bounds = runner.wave(protocol, wave_id)
     start = runner.parse_aware_utc(bounds["start_utc"])
     close = runner.parse_aware_utc(bounds["close_utc"])

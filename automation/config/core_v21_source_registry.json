@@ -1,0 +1,17 @@
+{
+  "schema_version": "2.1",
+  "status": "PROSPECTIVE_DRAFT_NOT_A_MODEL_FREEZE",
+  "preserved_registry": "services_v1.0.json",
+  "observation_surface": "provider_api",
+  "line_id": "ACI",
+  "environment_class": "CLOSED",
+  "active_lineages": [
+    {"service_lineage_id":"MIBO-SL-001","provider":"OpenAI","display_name":"OpenAI (ChatGPT lineage)","adapter":"openai_responses"},
+    {"service_lineage_id":"MIBO-SL-002","provider":"Anthropic","display_name":"Claude","adapter":"anthropic_messages"},
+    {"service_lineage_id":"MIBO-SL-003","provider":"Google","display_name":"Gemini","adapter":"gemini_generate_content"}
+  ],
+  "excluded_prospectively": ["MIBO-SL-004"],
+  "historical_four_lineage_records_modified": false,
+  "automatic_substitution_or_promotion": false,
+  "exact_models_and_profiles": "human-selected private version-specific freeze; no inherited W01/W02 authorization"
+}

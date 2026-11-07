@@ -6,6 +6,8 @@
 - **First v2.0 field window:** 6 October 2026 00:00 UTC
 - **Historical v1.0 DOI:** https://doi.org/10.5281/zenodo.21936410
 - **License for protocol text:** CC BY 4.0
+- **Original software in the prospective v2.1 package:** MIT, within
+  [the component-specific license scope](LICENSE_NOTICE.md); existing terms preserved.
 
 MIBO Core is the common sentinel-panel program of MIBO for longitudinal observation of generative-AI information behavior. The **Zenodo v2.0 record is the authoritative prospective specification for the API Core Interface (`ACI`) condition**. The Zenodo v1.0 record remains the frozen historical specification for its public-interface design; it is not amended, backfilled, or relabeled by v2.0. This GitHub repository is the public operational mirror and implementation workspace.
 
@@ -32,6 +34,35 @@ The paper is a companion scholarly output. It does **not** replace or amend the 
 - fail-closed execution, append-only capture, registered retry limits, and retained missingness.
 
 See `docs/v2.0/` and DOI `10.5281/zenodo.22264635`.
+
+## Prospective three-series implementation (v2.1 draft; not registered)
+
+The owner-directed next design uses only OpenAI, Anthropic/Claude and Google/Gemini.
+The version-specific collector supports 720 initial requests in ordinary waves
+and 840 in calibration waves, with a separate `v2.1/` archive namespace. Historical
+v2.0–v2.0.4 four-lineage protocols, denominators and archives remain unchanged.
+The proposed reciprocal AI method uses the two *other* provider families for
+each source and shared instrument-specific calibration; it is not evidence of
+completed calibration or external/human validity.
+
+See [draft amendment and registration checklist](docs/v2.1/README.md).
+The local root `CITATION.cff` now describes the unpublished `2.1-draft`, not a
+released v2.1. The current **published** scientific release above remains v2.0;
+its [unchanged citation](docs/v2.1/reference/PUBLISHED_CORE_v2.0.CITATION.cff)
+and DOI are not reassigned to the draft. The W03 analysis document has its own
+`1.1-draft` version. See [citation/version boundaries](docs/v2.1/CITATION_GUIDE.md).
+Author metadata, existing affiliations/funding/COI, expanded AI-assistance
+disclosure and the CC BY 4.0 / MIT separation are owner-confirmed locally,
+not a publication, registration, empirical-validation or execution approval.
+`automation/config/core_v21_protocol.draft.json` is deliberately non-runnable:
+the owner selected W03, but the separately published W03 analysis amendment,
+new Core registration, reviewed authored content,
+exact private freezes and hash-bound human authorization are still required.
+W03 baseline/W02 primary-comparison exclusion and operational/validity scoring
+separation are now owner-approved, not yet publicly registered or empirically qualified.
+The new service/env files are uninstalled templates with all execution/readiness
+sentinels disabled. No provider request, publication or live deployment is part
+of preparing this draft. Do not reuse historical start/staging scripts for v2.1.
 
 ## Historical v1.0 design
 

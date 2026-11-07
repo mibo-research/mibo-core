@@ -1,0 +1,38 @@
+{
+  "record_id": "MIBO-CORE-v21-METADATA-LICENSE-OWNER-APPROVAL-20261107",
+  "recorded_date_jst": "2026-11-07",
+  "record_type": "CHAT_METADATA_DISCLOSURE_LICENSE_APPROVAL_NOT_PUBLICATION_OR_EXECUTION_AUTHORIZATION",
+  "reply_verbatim": "1〜3すべて承認します。所属・既存開示に変更はありません。W03改訂Draftと公開準備パッケージに反映し、引用・版表記の整理とオフライン検証を進めてください。公開・観測・採点APIはまだ実行しないでください。",
+  "prior_policy_decision_file": "docs/v2.1/OWNER_DECISION_BASELINE_SCORING_20261107.json",
+  "existing_affiliations_funding_and_competing_interests_unchanged": true,
+  "expanded_AI_assistance_disclosure_scope_approved": true,
+  "original_software_MIT_approved": true,
+  "existing_component_and_third_party_terms_preserved": true,
+  "frozen_historical_releases_relicensed": false,
+  "approved_metadata": {
+    "creators": [
+      {
+        "name": "Sasano, Kento",
+        "given_name": "Kento",
+        "family_name": "Sasano",
+        "orcid": "0009-0009-3853-8029",
+        "affiliation": "Okayama University; Keio Research Institute at SFC, Keio University"
+      }
+    ],
+    "funding_declaration": "This research received no external financial or in-kind support and was self-funded by the author. Scrumy Inc. and Booost Inc. provided no financial or in-kind support for this research.",
+    "competing_interests_declaration": "Kento Sasano is the chief executive officer and an equity holder of Scrumy Inc., a company operating in AI governance, AI security, and AI marketing. He also serves as an AI strategy advisor to Booost Inc. These relationships are disclosed because their activities may be perceived as relevant to AI evaluation and governance. The author retains responsibility for the research design, interpretation, and manuscript. No other competing interests are declared.",
+    "AI_assistance_disclosure": "Codex assisted with protocol and scoring-specification drafting, software implementation, synthetic offline verification, and authoring bilingual synthetic development/calibration examples and their intended labels. These examples and labels are unvalidated development materials, not independent reference labels, measured study responses, or evidence of scoring accuracy. The author retains responsibility for research design, verification, interpretation, and publication. Generative-AI systems are not authors. No new empirical observation or scoring API calls were made in this preparation.",
+    "protocol_text_license": "CC-BY-4.0",
+    "original_software_license": "MIT",
+    "software_license_scope": "First-party original software source under automation/ and runtime/ in this prospective v2.1 package, except components carrying their own explicit license notices. Third-party materials and frozen historical releases are not relicensed."
+  },
+  "exact_final_public_artifact_approved": false,
+  "authored_calibration_labels_substantively_reviewed_by_this_reply": false,
+  "actual_model_qualification_completed": false,
+  "named_FINAL_execution_authorization_created": false,
+  "publication_approved": false,
+  "model_metadata_API_approved": false,
+  "observation_API_approved": false,
+  "scoring_API_approved": false,
+  "runtime_install_or_activation_approved": false
+}

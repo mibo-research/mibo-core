@@ -1,0 +1,32 @@
+{
+  "policy_id": "MIBO-CORE-v21-SCORING-QUALIFICATION-v1.0",
+  "status": "OWNER_APPROVED_LOCAL_NOT_REGISTERED",
+  "owner_decision_file": "docs/v2.1/OWNER_DECISION_BASELINE_SCORING_20261107.json",
+  "operational_qualification_is_not_validity": true,
+  "families": ["openai", "anthropic", "gemini"],
+  "self_family_judging": false,
+  "aggregation": "exact-variable-consensus-only-no-averaging-or-fallback",
+  "malformed_or_out_of_domain_rating_admitted": false,
+  "H_values_finalized_by_AI_consensus": false,
+  "development_cases": 72,
+  "minimum_validation_responses": 240,
+  "basic_validation_per_family": 80,
+  "development_validation_overlap": false,
+  "reference_benchmarks": {
+    "binary_nominal": {"metric":"macro_f1","threshold":0.80},
+    "ordinal": {"metric":"ordinal_krippendorff_alpha","threshold":0.80},
+    "deterministic_extraction": {"metric":"exact_match_rate","threshold":0.95}
+  },
+  "independent_reference_required": true,
+  "AI_consensus_may_replace_independent_reference": false,
+  "undefined_metric_may_pass": false,
+  "unreferenced_AI_use_scope": "auxiliary_exploratory_only",
+  "H_variable_policy": "external-evidence-human-verification-held-until-qualified",
+  "per_variable_reference_benchmark_not_global_model_certification": true,
+  "primary_URL_analysis_blocked_by_AI_qualification": false,
+  "authored_label_content_review_complete": false,
+  "actual_calibration_complete": false,
+  "actual_validation_complete": false,
+  "second_human_recruitment_required": false,
+  "scoring_API_authorized": false
+}

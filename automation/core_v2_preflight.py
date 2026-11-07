@@ -12,6 +12,7 @@ from typing import Any
 
 import api_preflight as api
 import core_v2_runner as runner
+import core_v21_policy as three_series
 from provider_adapters import AdapterFailure, call_provider
 from raw_archive import canonical_json_bytes
 
@@ -41,6 +42,8 @@ def _write_exclusive(path: Path, obj: Any) -> str:
 def run_preflight(*, protocol_path: Path, freeze_path: Path, out_dir: Path,
                   smoke: bool = False, timeout_s: int = 30) -> dict[str, Any]:
     protocol, protocol_sha = runner.load_protocol(protocol_path)
+    if protocol["protocol_version"] == runner.THREE_SERIES_PROTOCOL_VERSION:
+        three_series.require_readiness_sentinels(smoke=smoke)
     raw = json.loads(freeze_path.read_text(encoding="utf-8"))
     wave_id, site_id = raw.get("wave_id"), raw.get("site_id")
     if not isinstance(wave_id, str) or not isinstance(site_id, str):
@@ -51,12 +54,14 @@ def run_preflight(*, protocol_path: Path, freeze_path: Path, out_dir: Path,
     if out_dir.exists():
         raise FileExistsError(f"Core v2 preflight evidence already exists: {out_dir}")
     out_dir.mkdir(parents=True)
-    services = {s["service_lineage_id"]: s for s in __import__("mibo_runner")._services()}
+    services = {s["service_lineage_id"]: s for s in runner.services_for_protocol(protocol)}
     catalogs: dict[str, dict[str, Any]] = {}
     errors: list[str] = []
     for service in services.values():
         label = service["provider"]
         provider = _api_provider(label)
+        if protocol["protocol_version"] == runner.THREE_SERIES_PROTOCOL_VERSION:
+            three_series.require_readiness_sentinels(smoke=smoke)
         result, ids = api.fetch_catalog(provider, timeout_s=timeout_s)
         evidence = {
             "service_provider_label": label, "api_provider": provider,
@@ -80,6 +85,8 @@ def run_preflight(*, protocol_path: Path, freeze_path: Path, out_dir: Path,
         cfg = freeze["core_api"][sid]
         model_id = cfg["model_id"]
         listed = model_id in catalogs[label]["model_ids"]
+        if protocol["protocol_version"] == runner.THREE_SERIES_PROTOCOL_VERSION:
+            three_series.require_readiness_sentinels(smoke=smoke)
         exact = api.fetch_exact_model(provider, model_id, timeout_s=timeout_s)
         returned_id = None
         verified = listed
@@ -111,6 +118,8 @@ def run_preflight(*, protocol_path: Path, freeze_path: Path, out_dir: Path,
             "metadata_file": metadata_file, "metadata_sha256": metadata_sha,
         }
         if smoke:
+            if protocol["protocol_version"] == runner.THREE_SERIES_PROTOCOL_VERSION:
+                three_series.require_readiness_sentinels(smoke=True)
             if os.environ.get("MIBO_CORE_V2_SMOKE_TEST") != SMOKE_SENTINEL:
                 raise ValueError(f"Core v2 smoke requires MIBO_CORE_V2_SMOKE_TEST={SMOKE_SENTINEL}")
             try:

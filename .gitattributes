@@ -1,0 +1,24 @@
+# New prospective artifacts use stable bytes; do not normalize canonical copies.
+/.gitattributes text eol=lf
+/README.md text eol=lf
+CITATION.cff text eol=lf
+LICENSE_NOTICE.md text eol=lf
+LICENSE_CODE_MIT.txt text eol=lf
+automation/core_v21*.py text eol=lf
+automation/config/core_v21*.json text eol=lf
+automation/tests/test_core_v21*.py text eol=lf
+runtime/mibo-core-v21* text eol=lf
+docs/v2.1/* text eol=lf
+docs/v2.1/reference/* -text
+docs/v2.1/reference/MIBO_Query_Codebook_v1.0.md whitespace=-blank-at-eol
+docs/v2.1/reference/MIBO_Statistical_Analysis_Plan_v1.0.md whitespace=-blank-at-eol
+docs/v2.1/reference/MIBO_Fixed_Query_Instrument_v1.0.md whitespace=-blank-at-eol
+docs/v2.1/scoring/*.json -text
+docs/v2.1/scoring/*.md text eol=lf
+docs/v2.1/reference/PUBLISHED_CORE_v2.0.CITATION.cff -text whitespace=blank-at-eol,blank-at-eof,space-before-tab,cr-at-eol
+automation/url_set_variation_v11.py text eol=lf
+automation/tests/test_url_set_variation_v11.py text eol=lf
+automation/url_set_variation.py -text
+automation/tests/test_url_set_variation.py -text
+docs/analysis/W03-URL-variation-v1.0/* -text
+docs/analysis/W03-URL-variation-v1.1-DRAFT/* text eol=lf
