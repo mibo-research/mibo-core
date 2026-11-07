@@ -1,0 +1,204 @@
+{
+  "AI_coding": {
+    "W02": "retain automated_ai, human_validation=false, exploratory; 9 indeterminate citations remain indeterminate",
+    "W03_supplement": "only under a separately prospectively frozen AI coding plan; freeze exact grader IDs, prompts, agreement rule and bounded adjudication before W03 outputs are inspected; no human-validation accuracy claim",
+    "additional_human_case_grading": 0,
+    "required_for_primary_metrics": false
+  },
+  "baseline_wave": "MIBO2-W02",
+  "collection_binding": {
+    "all_material_request_profiles_equal_W02": true,
+    "collection_source_commit": "d970efab834f193b7f3d12ecded20be6f0e8f445",
+    "exact_model_identifiers": {
+      "MIBO-SL-001": "gpt-6.1-sol",
+      "MIBO-SL-002": "claude-sonnet-5-5",
+      "MIBO-SL-003": "gemini-3.8-flash",
+      "MIBO-SL-004": "perplexity/sonar"
+    },
+    "identifier_lock_limit": "A frozen requested identifier does not guarantee unchanged hosted weights, aliases, provider defaults or platform behavior. Record returned identifiers and platform metadata and disclose changes.",
+    "initial_request_count": 960,
+    "manifest_sha256": "ae0c5cd95dcb014ebdff9dec1cc86fb2dd98ba6c100cb1179e60530b6a2baae9",
+    "material_request_profiles": {
+      "MIBO-SL-001": {
+        "adapter": "openai_responses",
+        "api_key_env": "OPENAI_API_KEY",
+        "endpoint": "https://api.openai.com/v1/responses",
+        "max_output_tokens": 4096,
+        "reasoning": {
+          "effort": "low"
+        },
+        "temperature": null,
+        "top_p": null
+      },
+      "MIBO-SL-002": {
+        "adapter": "anthropic_messages",
+        "anthropic_version": "2023-06-01",
+        "api_key_env": "ANTHROPIC_API_KEY",
+        "endpoint": "https://api.anthropic.com/v1/messages",
+        "max_output_tokens": 4096,
+        "temperature": null,
+        "top_p": null
+      },
+      "MIBO-SL-003": {
+        "adapter": "gemini_generate_content",
+        "api_key_env": "GEMINI_API_KEY",
+        "endpoint_base": "https://generativelanguage.googleapis.com/v1beta/models",
+        "max_output_tokens": 4096,
+        "temperature": null,
+        "top_p": null
+      },
+      "MIBO-SL-004": {
+        "adapter": "perplexity_agent",
+        "api_key_env": "PERPLEXITY_API_KEY",
+        "disable_search": true,
+        "endpoint": "https://api.perplexity.ai/v1/agent",
+        "max_output_tokens": 4096,
+        "temperature": null,
+        "top_p": null
+      }
+    },
+    "no_new_execution_authorization_created_by_registration": true,
+    "protocol_file_sha256": "354d371e24a39f1574ad4e4152256e27ed584e651e1bb174e1de4bc58ed90bbc",
+    "protocol_registration_id": "https://github.com/mibo-research/mibo-core/blob/3045cbacaa15d19699deb8e79d1c7465b7d2f343/docs/v2.0.1/AMENDMENT_v2.0.1.md",
+    "protocol_version": "2.0.1",
+    "provider_freeze_sha256": "6e74021e4c84c277f57eec41a1da89a76b38c9dbcbeeba0b9f5d783ecd0d56d5",
+    "readiness_report_sha256": "ff18528c08c879ccab63ad63efc03ad4dfa4508161582968bfb3a9be05490fa7",
+    "registered_prompts_used_in_readiness": false
+  },
+  "collection_design_preserved": {
+    "lineages": 4,
+    "planned_initial_requests": 960,
+    "query_forms": 24,
+    "replications": 10
+  },
+  "condition": "ACI",
+  "implementation": {
+    "canonical_request_profile_digest": "SHA-256 over UTF-8 json.dumps(profile, ensure_ascii=False, sort_keys=True, separators=(comma,colon)), with no appended newline. Environment variable names are included; credential values never are.",
+    "input_contract": "All 80 planned I03 logical slots per wave, including technical missingness; one retained response per slot; the input must be bound to an archived technical audit and original response hashes.",
+    "profile_change_rule": "The implementation omits the primary numerical contrast when profile digests differ. A separately archived prospective comparability review would require an explicit versioned update; no automatic pooling.",
+    "source_file": "automation/url_set_variation.py",
+    "source_sha256": "914b61672d66ca0dd21f3bd4a89e70dd5d7589d4322f3106e95b9f32535216a6",
+    "synthetic_tests_file": "automation/tests/test_url_set_variation.py",
+    "synthetic_tests_sha256": "8b28a9c973eb85cb590c331af7882764f799b1ca99f3006c99a9513dfc7f6efd"
+  },
+  "origin": {
+    "W02_exposure": "W02 outputs and descriptive citation-pattern summaries had already been inspected before the question and analysis were chosen. W02 analyses remain exploratory.",
+    "approved_proposal_sha256": "4df3965dcf0c13a959e9c5dd3cf8cd697106ad8c8aa4e414ddbd79977caefd8f",
+    "approved_proposal_version": "0.2",
+    "prospective_scope": "W03 observations have not been collected or inspected. The pre-W03 specification is prospective for W03 only.",
+    "superseded_sensitivity": "Earlier v0.1 bootstrap draft is superseded. No bootstrap, confidence interval, p value or service ranking is planned here."
+  },
+  "paper_primary_subset": {
+    "item_id": "MIBO-I03",
+    "languages": [
+      "EN",
+      "JA"
+    ],
+    "lineages": 4,
+    "planned_cells_per_wave": 8,
+    "planned_responses_per_wave": 80
+  },
+  "paper_working_title": "Within-wave and between-wave variation in source URL strings in Japanese and English API responses from four generative AI service lineages",
+  "primary_contrast": {
+    "cell_match": "same site, item form hash, language, lineage, condition and window class, plus prospectively reviewed material request profiles",
+    "hypothesis_tests": "none in this paper proposal",
+    "leave_one_response_out_sensitivity": {
+      "interpretation": "descriptive sensitivity range, not a confidence interval",
+      "missingness_or_empty_set_rules_are_unchanged": true,
+      "original_cell_eligibility_is_held_fixed": true,
+      "output": "minimum and maximum defined contrasts plus number of undefined omission combinations",
+      "procedure": "omit one retained response from each wave; evaluate all cross-wave omission combinations within each originally eligible cell",
+      "unit": "whole response, not pair rows"
+    },
+    "minimum_valid_responses_in_each_wave": 8,
+    "model_or_material_settings_change": "report as changed deployment/configuration; no same-model causal interpretation; no silent pooling",
+    "name": "W03 minus W02 mean within-cell Jaccard, separately in each eligible lineage-language cell",
+    "temporal_pairing": "replication numbers are not matched subjects across waves",
+    "undefined_similarity_cells": "report; omit numerical contrast; retain all observations"
+  },
+  "primary_metric": {
+    "both_empty": "undefined, excluded from similarity mean and counted separately",
+    "exclude_technical_missingness_from_response_denominator": true,
+    "include_refusals_and_safety_responses_as_valid_observations": true,
+    "name": "within_cell_mean_pairwise_exact_URL_set_Jaccard",
+    "no_eligible_pairs": "undefined; never replace by 0 or 1",
+    "one_empty": "0",
+    "pair_formula": "len(A & B) / len(A | B)"
+  },
+  "prospective_wave": "MIBO2-W03",
+  "references": [
+    {
+      "id": "R1",
+      "reference": "Sielinski R. 2026. Quantifying Uncertainty in AI Visibility: A Statistical Framework for Generative Search Measurement. arXiv v3. 査読前論文。",
+      "url": "https://arxiv.org/abs/2603.08924"
+    },
+    {
+      "id": "R2",
+      "reference": "Pykälä L, Kaski KK. 2026. Self-Consistency of Entity Sets and Citations in a Deep Research System under Repeated Prompting. arXiv v1. 査読前論文。",
+      "url": "https://arxiv.org/abs/2610.26421"
+    },
+    {
+      "id": "R3",
+      "reference": "Gao T, Yen H, Yu J, Chen D. 2023. Enabling Large Language Models to Generate Text with Citations. EMNLP. 自動引用評価のALCE。",
+      "url": "https://aclanthology.org/2023.emnlp-main.398/"
+    },
+    {
+      "id": "R4",
+      "reference": "Liu NF, Zhang T, Liang P. 2023. Evaluating Verifiability in Generative Search Engines. 引用による主張の支持を評価。",
+      "url": "https://arxiv.org/abs/2304.09848"
+    },
+    {
+      "id": "R5",
+      "reference": "Zheng L et al. 2023. Judging LLM-as-a-Judge with MT-Bench and Chatbot Arena. NeurIPS. AI評価者の偏りと人間との一致を検討。",
+      "url": "https://arxiv.org/abs/2306.05685"
+    },
+    {
+      "id": "R6",
+      "reference": "Sasano K. 2026. MIBO: A Sentinel Panel Survey of Public Generative-AI Information Behavior: Design, Pilot Lessons, and an International Mirror-Replication Architecture. 既存の設計論文。",
+      "url": "https://papers.ssrn.com/sol3/papers.cfm?abstract_id=7319218"
+    }
+  ],
+  "registration_date_utc": "2026-11-07",
+  "registration_evidence": "The enclosing public Git commit and its provider timestamp are the immutable registration record. This is a GitHub prospective analysis registration, not a new Zenodo or OSF deposit.",
+  "schema": "mibo-w03-derivative-url-analysis-registration-1.0",
+  "scope": "Separate derivative URL analysis for a W02/W03 empirical paper; not an amendment to Core confirmatory outcomes",
+  "secondary_descriptive_metrics": [
+    "number of distinct exact first-five URL sets with actual denominator; direct comparison of this count only for equal response counts",
+    "share of valid responses with no extracted URL",
+    "lowercase exact hostname set Jaccard using the same five URLs; no registrable-domain merging",
+    "cross-wave set overlap reported as exploratory, not independent pair observations"
+  ],
+  "sharing_and_governance": {
+    "additional_human_case_grading": 0,
+    "execution_gate": "Private PI authorization remains required before enabling the collector. Public registration and a generated manifest do not authorize collection.",
+    "future_changes": "Append a dated version before W03 output inspection; retain this version. Changes after exposure must be marked deviations/exploratory.",
+    "human_validation_claim": false,
+    "institutional_determination": "Do not infer institutional ethics approval or exemption. Carry forward a documented applicable determination or confirm it in the private final review.",
+    "primary_metric_needs_no_AI_grader": true,
+    "public_registration_contains_no_raw_responses_or_credentials": true
+  },
+  "site_id": "JP01",
+  "url_extraction": {
+    "hostname_parse_failure": "Retain the exact URL for the primary metric, omit an unparseable/missing hostname from the secondary hostname set, and report the count of such occurrences.",
+    "limits": "URL-free bibliographic citations and semantic source identity are outside this metric",
+    "network_requests": false,
+    "query_string_normalization": false,
+    "redirect_resolution": false,
+    "reference_script": "Historical W02 citation_patterns.py (content hash below); literal selection rule is implemented in automation/url_set_variation.py",
+    "reference_script_sha256": "20ea28fa1ea3e5d850ce792ec3c82c1d3c23228f25436825487050cd65cb0814",
+    "regex": "https?://[^\\s<>\"\\]\\)]+",
+    "rule": "citations URLs then regex URLs in displayed text; rstrip period/comma/semicolon; first occurrence deduplication; first five; order-insensitive exact URL set"
+  },
+  "w03_window": {
+    "calibration_wave": false,
+    "close_utc": "2026-12-03T00:00:00Z",
+    "start_utc": "2026-12-01T00:00:00Z",
+    "wave_id": "MIBO2-W03",
+    "window_a": null,
+    "window_b": null
+  },
+  "w03_window_jst": {
+    "close": "2026-12-03T09:00:00+09:00",
+    "start": "2026-12-01T09:00:00+09:00"
+  }
+}
