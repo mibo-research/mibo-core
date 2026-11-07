@@ -1,0 +1,29 @@
+[Unit]
+Description=MIBO W03 offline technical QC comparison and manuscript draft
+After=local-fs.target
+ConditionPathExists=!/srv/mibo-private/W03-postwave-results-20261107/COMPLETED.json
+StartLimitIntervalSec=6h
+StartLimitBurst=6
+
+[Service]
+Type=oneshot
+User=mibo
+Group=mibo
+EnvironmentFile=/etc/mibo/mibo-w03-postwave.env
+Environment=PYTHONDONTWRITEBYTECODE=1
+UnsetEnvironment=OPENAI_API_KEY ANTHROPIC_API_KEY GEMINI_API_KEY PERPLEXITY_API_KEY
+ExecStart=/usr/bin/python3 -B ${MIBO_POSTWAVE_SOURCE_ROOT}/automation/w03_postwave.py --config ${MIBO_POSTWAVE_CONFIG} --config-sha256 ${MIBO_POSTWAVE_CONFIG_SHA256}
+Restart=on-failure
+RestartSec=15min
+TimeoutStartSec=30min
+NoNewPrivileges=true
+PrivateTmp=true
+PrivateNetwork=true
+PrivateDevices=true
+RestrictAddressFamilies=AF_UNIX
+ProtectSystem=strict
+ProtectHome=true
+ReadOnlyPaths=/srv/mibo-data
+ReadWritePaths=/srv/mibo-data/.execution-locks /srv/mibo-private/W03-postwave-results-20261107
+InaccessiblePaths=/etc/mibo/mibo-core-v2-w03.env /etc/mibo/mibo-core-v2-w02.env
+UMask=0077
