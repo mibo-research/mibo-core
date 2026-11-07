@@ -1,0 +1,65 @@
+{
+  "schema_version": 1,
+  "record_type": "PUBLICATION_FACTS_NOT_RUNTIME_CONFIGURATION_OR_EXECUTION_AUTHORIZATION",
+  "Core": {
+    "title": "MIBO Core Protocol Package v2.1: Three-Series API Observatory and Reciprocal AI Coding",
+    "version": "2.1",
+    "doi": "10.5281/zenodo.24029860",
+    "url": "https://zenodo.org/records/24029860",
+    "publication_date": "2026-11-07",
+    "published": true
+  },
+  "doi_registry": {
+    "name": "DataCite",
+    "state": "findable",
+    "registered_at_utc": "2026-11-07T07:34:06Z",
+    "registered_at_jst": "2026-11-07T16:34:06+09:00",
+    "url": "https://api.datacite.org/dois/10.5281/zenodo.24029860",
+    "timestamp_scope": "DOI registry registration time, not a separately asserted exact Zenodo publication-event timestamp"
+  },
+  "adoption_declaration": {
+    "filename": "MIBO-Core-v2.1-Finalization-Declaration-20261107.txt",
+    "url": "https://zenodo.org/records/24029860/files/MIBO-Core-v2.1-Finalization-Declaration-20261107.txt?download=1",
+    "sha256": "f5032e1f61917be321554210e2a01c1d3572b5a25231e735c59572012a86036d",
+    "bytes": 11555
+  },
+  "unchanged_archive": {
+    "filename": "core-v21-W03-reviewed-source-draft-20261107-r6.zip",
+    "sha256": "2b58cd7ab3aaa48a2bb5a2a7de4e0b0588c7d1f0f5945f640047f6e30df84209",
+    "bytes": 1737688,
+    "source_members": 211,
+    "total_members": 216,
+    "reviewed_source_commit": "8684844e7f21eac733e5c211797554cf68d47609",
+    "source_tree": "bf8a9b2cbcd15de6d803d469b407b3d74c544902",
+    "regenerated_by_documentation_update": false
+  },
+  "W03_analysis": {
+    "version": "1.1",
+    "standalone_doi": null,
+    "adopting_Core_doi": "10.5281/zenodo.24029860",
+    "immutable_full_text_url": "https://github.com/mibo-research/mibo-core/blob/8684844e7f21eac733e5c211797554cf68d47609/docs/analysis/W03-URL-variation-v1.1-DRAFT/REGISTRATION_DRAFT.md",
+    "component_sha256": "c4be4993952361f25a7c91aa467e67424873708b97107fcf70776476635a2576",
+    "registration_index": "../analysis/W03-URL-variation-v1.1/REGISTRATION.md",
+    "original_start_utc": "2026-12-01T00:00:00Z",
+    "original_close_utc": "2026-12-03T00:00:00Z",
+    "historical_v10_unchanged": true
+  },
+  "integration": {
+    "PR": "https://github.com/mibo-research/mibo-core/pull/25",
+    "merge_commit": "231692e937a246ef3d2cab45200a4ebec4900881",
+    "merged_at_utc": "2026-11-07T07:30:35Z",
+    "later_documentation_commit_is_not_archive_source_pin": true
+  },
+  "retained_boundaries": {
+    "archived_draft_flags_are_preparation_snapshots": true,
+    "public_execution_templates_unchanged_and_disabled": true,
+    "actual_AI_qualification_complete": false,
+    "development_materials_unvalidated": true,
+    "unreferenced_AI_use": "auxiliary_exploratory_only",
+    "H_external_verification_held": true,
+    "model_readiness_API_authorized_by_this_record": false,
+    "observation_API_authorized_by_this_record": false,
+    "scoring_API_authorized_by_this_record": false,
+    "runtime_activation_authorized_by_this_record": false
+  }
+}
