@@ -224,8 +224,8 @@ class WaveAuditTests(unittest.TestCase):
         self.assertEqual(sum(c["planned"] for c in report["cells"] if c["window_id"] == "WB"), 160)
     def test_concurrently_changed_input_aborts_before_report(self):
         inspect = audit._inspect_namespace
-        def changed(*args):
-            result = inspect(*args)
+        def changed(*args, **kwargs):
+            result = inspect(*args, **kwargs)
             (Path(self.spec["raw_root"]) / "new-unlinked-file").write_text(SECRET)
             return result
         with patch.object(audit, "_inspect_namespace", side_effect=changed):

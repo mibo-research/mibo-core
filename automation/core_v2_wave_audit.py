@@ -190,11 +190,19 @@ def _baseline_design(rows, protocol):
         raise ValueError("Baseline must contain complete registered planned design")
 
 
-def _inspect_namespace(spec, baseline, wave_id):
+def _inspect_namespace(spec, baseline, wave_id, *, sidecars_only, observed_at):
     version = str(spec["version"])
     if not SAFE_TOKEN.fullmatch(version):
         raise ValueError("Invalid namespace version")
     root = _tree(spec["raw_root"])
+    sealed, namespace_issues = _sealed(root)
+    if sidecars_only:
+        if sealed is None or namespace_issues:
+            raise ValueError("Technical sidecar mode requires a verified sealed namespace")
+        for key in ("manifest", "protocol", "freeze"):
+            path = Path(spec[key]).resolve()
+            if sealed.get(path.relative_to(root).as_posix()) != sha(path):
+                raise ValueError("Technical sidecar mode requires seal-bound frozen inputs")
     protocol = _json(spec["protocol"])
     freeze = _json(spec["freeze"])
     rows = _rows(spec["manifest"], wave_id)
@@ -220,7 +228,12 @@ def _inspect_namespace(spec, baseline, wave_id):
             planned[row["attempt_id"]] = row
     if set(admitted) != {r["service_lineage_id"] for r in planned.values()}:
         raise ValueError("Namespace admitted scope not found in manifest")
-    sealed, namespace_issues = _sealed(root)
+    typed_rows = {}
+    if sidecars_only:
+        from core_v2_execution_state import validate_capture
+        from core_v2_runner import read_csv
+
+        typed_rows = {row["attempt_id"]: row for row in read_csv(Path(spec["manifest"]))}
     for folder in ("metadata", "failures", "dispatch", "api_raw", "deviations"):
         if (root / folder).exists() and not (root / folder).is_dir():
             raise ValueError("Expected evidence directory")
@@ -345,27 +358,41 @@ def _inspect_namespace(spec, baseline, wave_id):
                     issues.append("raw_hash_mismatch")
                 if sealed is not None and (str(raw.relative_to(root)) not in sealed or digest != sealed.get(str(raw.relative_to(root)))):
                     issues.append("raw_not_bound_to_seal")
-                try:
-                    # Parse envelope structure only; answer, request payload, and usage are never inspected or emitted.
-                    envelope = _json(raw)
-                    if envelope.get("attempt_id") != aid or not _record_identity(envelope, row, version):
-                        issues.append("raw_envelope_identity_mismatch")
-                    if any(str(envelope.get(k)) != str(row[k]) for k in IDENTITY_FIELDS):
-                        issues.append("raw_envelope_required_identity_missing")
-                    if envelope.get("model_id_requested") != row.get("model_id"):
-                        issues.append("raw_requested_model_mismatch")
-                    record["returned_model_id_sha256"] = _canonical_hash(envelope.get("model_id_returned"))
-                    started, completed = _time(envelope.get("started_at_utc")), _time(envelope.get("completed_at_utc"))
-                    record["submitted_confirmed"] = isinstance(envelope.get("http_status"), int) and 100 <= envelope["http_status"] <= 599
-                    if not isinstance(envelope.get("http_status"), int) or not 200 <= envelope["http_status"] <= 299:
-                        issues.append("capture_http_status_not_successful")
-                    if not started or not completed or completed < started:
-                        issues.append("capture_times_missing_or_invalid")
-                    for key, rawtime in (("started_at_utc", started), ("completed_at_utc", completed)):
-                        if key in value and _time(value[key]) != rawtime:
-                            issues.append("metadata_raw_time_mismatch")
-                except (ValueError, OSError, UnicodeError):
-                    issues.append("raw_envelope_unreadable")
+                if sidecars_only:
+                    if raw_name != f"api_raw/{aid}.json" or p.name != aid + ".json":
+                        issues.append("capture_path_does_not_match_attempt")
+                    expected = {**typed_rows[oid], "attempt_id": aid, "attempt": number,
+                                "retry_of_attempt_id": None if number == 1 else oid[:-2] + f"{number - 1:02d}"}
+                    try:
+                        started, completed = validate_capture(
+                            value, expected, bounds=(begin, end), current=observed_at)
+                    except ValueError:
+                        issues.append("technical_capture_sidecar_invalid")
+                    else:
+                        record["submitted_confirmed"] = True
+                        record["returned_model_id_sha256"] = _canonical_hash(value.get("model_id_returned"))
+                else:
+                    try:
+                        # Legacy evidence lacks the complete technical sidecar.
+                        envelope = _json(raw)
+                        if envelope.get("attempt_id") != aid or not _record_identity(envelope, row, version):
+                            issues.append("raw_envelope_identity_mismatch")
+                        if any(str(envelope.get(k)) != str(row[k]) for k in IDENTITY_FIELDS):
+                            issues.append("raw_envelope_required_identity_missing")
+                        if envelope.get("model_id_requested") != row.get("model_id"):
+                            issues.append("raw_requested_model_mismatch")
+                        record["returned_model_id_sha256"] = _canonical_hash(envelope.get("model_id_returned"))
+                        started, completed = _time(envelope.get("started_at_utc")), _time(envelope.get("completed_at_utc"))
+                        record["submitted_confirmed"] = isinstance(envelope.get("http_status"), int) and 100 <= envelope["http_status"] <= 599
+                        if not isinstance(envelope.get("http_status"), int) or not 200 <= envelope["http_status"] <= 299:
+                            issues.append("capture_http_status_not_successful")
+                        if not started or not completed or completed < started:
+                            issues.append("capture_times_missing_or_invalid")
+                        for key, rawtime in (("started_at_utc", started), ("completed_at_utc", completed)):
+                            if key in value and _time(value[key]) != rawtime:
+                                issues.append("metadata_raw_time_mismatch")
+                    except (ValueError, OSError, UnicodeError):
+                        issues.append("raw_envelope_unreadable")
                 if value.get("status") != "valid_confirmatory_api_capture":
                     issues.append("capture_status_unrecognized")
             record["verified_capture"] = not issues
@@ -426,13 +453,28 @@ def _inspect_namespace(spec, baseline, wave_id):
     return {"version": version, "manifest_sha256": sha(spec["manifest"]), "protocol_sha256": ph, "freeze_sha256": fh, "seal_sha256": sha(root / "SHA256SUMS.txt") if sealed is not None else None, "seal_present": sealed is not None, "issues": sorted(set(namespace_issues)), "malformed_evidence_records": malformed, "unlinked_raw_sha256": unlinked, "profile_sha256_by_lineage": profiles, "first_dispatch_intents": starts, "stop_records": stops}, planned, by_initial, protocol
 
 
-def audit_wave(*, baseline_manifest, namespaces, wave_id, now=None):
+def audit_wave(*, baseline_manifest, namespaces, wave_id, now=None, sidecars_only=False):
     """Return disclosure-safe report; never mutate inputs or call external services."""
     if not re.fullmatch(r"MIBO2-W(?:0[1-9]|1[0-2])", wave_id):
         raise ValueError("Wave ID invalid")
     if not isinstance(namespaces, list) or not namespaces:
         raise ValueError("At least one explicit namespace required")
+    observed_at = now or datetime.now(timezone.utc)
+    if observed_at.tzinfo is None:
+        raise ValueError("Audit timestamp must include timezone")
     before = _input_fingerprint(baseline_manifest, namespaces)
+    if sidecars_only:
+        manifests = set()
+        for spec in namespaces:
+            closure = Path(spec["raw_root"]).resolve() / "closure"
+            for key, filename in (("manifest", "FROZEN_MANIFEST.csv"),
+                                  ("protocol", "FROZEN_PROTOCOL.json"),
+                                  ("freeze", "FROZEN_FREEZE.json")):
+                if Path(spec[key]).resolve() != closure / filename:
+                    raise ValueError("Technical sidecar mode requires canonical seal-bound frozen inputs")
+            manifests.add(closure / "FROZEN_MANIFEST.csv")
+        if Path(baseline_manifest).resolve() not in manifests:
+            raise ValueError("Technical sidecar mode requires a frozen namespace baseline")
     rows = _rows(baseline_manifest, wave_id)
     baseline = {r["attempt_id"]: r for r in rows}
     variants, all_records, sources, protocols = defaultdict(list), defaultdict(list), [], {}
@@ -440,7 +482,8 @@ def audit_wave(*, baseline_manifest, namespaces, wave_id, now=None):
     if len(roots) != len(set(roots)):
         raise ValueError("Duplicate input namespace root")
     for spec in namespaces:
-        source, planned, records, protocol = _inspect_namespace(spec, baseline, wave_id)
+        source, planned, records, protocol = _inspect_namespace(
+            spec, baseline, wave_id, sidecars_only=sidecars_only, observed_at=observed_at)
         _baseline_design(rows, protocol)
         sources.append(source)
         for oid, row in planned.items():
@@ -449,9 +492,6 @@ def audit_wave(*, baseline_manifest, namespaces, wave_id, now=None):
             all_records[oid].extend(records.get(oid, []))
             protocols[oid] = protocol
     observations, counters, cells = [], Counter(), defaultdict(lambda: {"planned": set(), "verified_capture": set()})
-    observed_at = now or datetime.now(timezone.utc)
-    if observed_at.tzinfo is None:
-        raise ValueError("Audit timestamp must include timezone")
     for row in rows:
         oid = row["attempt_id"]
         record_list = all_records[oid]
@@ -508,7 +548,7 @@ def audit_wave(*, baseline_manifest, namespaces, wave_id, now=None):
         provider_rows.append({"service_lineage_id": sid, "planned": len(subset), "submitted": sum(r["submitted_confirmed"] for r in subset), "earliest_recorded_adapter_or_request_start_utc": min(starts) if starts else None, "latest_recorded_capture_or_failure_utc": max(ends) if ends else None, **{s: sum(r["status"] == s for r in subset) for s in STATUS_FIELDS}})
     if before != _input_fingerprint(baseline_manifest, namespaces):
         raise ValueError("Input evidence changed during offline audit")
-    return {"schema_version": "core-v2-content-blind-audit-1", "wave_id": wave_id, "audited_at_utc": _iso(observed_at), "audit_tool_sha256": sha(Path(__file__)), "input_change_check": "no_path_size_mtime_inode_change_detected_during_audit", "baseline_manifest_sha256": sha(baseline_manifest), "interpretation": {"submitted": "lower_bound_from_provider_http_response_evidence; dispatch_intent_and_local_failure_alone_do_not_prove_submission", "verified_capture": "structural_identity_raw_hash_and_registered_window_checked_only", "candidate_cells": "same_version_profile_model_provider_query_language_window; n_ge_8_is_technical_only; independent_content_validity_unjudged", "missingness": "no_log_is_unknown_not_proof_of_unsubmitted; no_imputation", "comparability": "different_versions_profiles_or_window_designs_not_automatically_comparable", "causality": "wave_difference_does_not_identify_repair_effect"}, "totals": totals, "providers": provider_rows, "namespaces": sources, "cells": cell_rows, "observations": observations}
+    return {"schema_version": "core-v2-content-blind-audit-1", "wave_id": wave_id, "audited_at_utc": _iso(observed_at), "audit_tool_sha256": sha(Path(__file__)), "input_change_check": "no_path_size_mtime_inode_change_detected_during_audit", "baseline_manifest_sha256": sha(baseline_manifest), "capture_evidence_mode": "sealed_technical_sidecars" if sidecars_only else "legacy_raw_envelope_structure", "interpretation": {"submitted": "lower_bound_from_provider_http_response_evidence; dispatch_intent_and_local_failure_alone_do_not_prove_submission", "verified_capture": "structural_identity_raw_hash_and_registered_window_checked_only", "candidate_cells": "same_version_profile_model_provider_query_language_window; n_ge_8_is_technical_only; independent_content_validity_unjudged", "missingness": "no_log_is_unknown_not_proof_of_unsubmitted; no_imputation", "comparability": "different_versions_profiles_or_window_designs_not_automatically_comparable", "causality": "wave_difference_does_not_identify_repair_effect"}, "totals": totals, "providers": provider_rows, "namespaces": sources, "cells": cell_rows, "observations": observations}
 
 
 def write_report(report, output_dir, *, forbidden_roots):
@@ -548,11 +588,14 @@ def main(argv=None):
     parser.add_argument("--baseline-manifest", required=True, type=Path)
     parser.add_argument("--namespace-spec", required=True, type=Path, help="Private JSON list of version/raw_root/manifest/protocol/freeze/lineages")
     parser.add_argument("--output-dir", required=True, type=Path, help="New private directory outside every raw root")
+    parser.add_argument("--sealed-sidecars-only", action="store_true",
+                        help="Use sealed technical capture sidecars and hash raw bytes without decoding them")
     args = parser.parse_args(argv)
     try:
         with args.namespace_spec.open(encoding="utf-8") as f:
             specs = json.load(f)
-        report = audit_wave(baseline_manifest=args.baseline_manifest, namespaces=specs, wave_id=args.wave)
+        report = audit_wave(baseline_manifest=args.baseline_manifest, namespaces=specs, wave_id=args.wave,
+                            sidecars_only=args.sealed_sidecars_only)
         write_report(report, args.output_dir, forbidden_roots=[s["raw_root"] for s in specs])
     except (ValueError, OSError, KeyError, TypeError) as exc:
         # Exceptions may contain private filesystem or malformed input values.
